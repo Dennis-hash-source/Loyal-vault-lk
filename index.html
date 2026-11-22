@@ -214,6 +214,18 @@ th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
 <p id="notifBar" class="small"></p>
 <div class="kpi"><div><small>TOTAL IN</small><b id="kIn">KES 0</b></div><div><small>TOTAL OUT</small><b id="kOut">KES 0</b></div><div><small>BALANCE</small><b id="kBal">KES 0</b></div></div>
 <div id="memberBalanceBox" style="margin-top:10px"></div>
+<!-- NEW: MEMBER PAYSTACK PAY - SACCO/CHAMA ONLY -->
+<div id="memberPayCard" class="card" style="display:none;background:#eef2ff;border:2px solid #2563eb">
+<h3>💳 Pay With Paystack - SACCO / CHAMA Only</h3>
+<p class="small">Choose what you are paying for. It will be recorded in the right place automatically.</p>
+<label>Pay For</label>
+<select id="payForType"><option>Contribution</option><option>Savings</option><option>Loan Repayment</option><option>Fine</option><option>Merry-Go-Round</option><option>Welfare</option></select>
+<input id="payForLoanId" placeholder="Loan ID - ONLY if you chose Loan Repayment" autocomplete="off" style="display:none">
+<input id="payForAmt" type="number" placeholder="Amount KES - e.g. 1000">
+<input id="payForEmail" placeholder="Your Email for Paystack Receipt" autocomplete="off">
+<button class="btn btn2" onclick="memberPayWithPaystack()">Pay With Paystack</button>
+<p class="small" id="payForMsg"></p>
+</div>
 <p id="auditStatus" class="small"></p>
 <div id="myAuditBox" class="small"></div>
 <input id="txSearch" placeholder="Search transactions..." oninput="renderTx()" autocomplete="off">
@@ -306,739 +318,121 @@ let lastAct=Date.now();
 ['click','keydown','touchstart'].forEach(e=>document.addEventListener(e,()=>{lastAct=Date.now()}));
 setInterval(()=>{if(window.current&&Date.now()-lastAct>30*60*1000){alert('Auto logged out for safety - 30 min');logout()}},60000);
 let taps=0,lastTap=0;
-function toggleEye(id,btn){
-let el=document.getElementById(id);
-if(!el)return;
-el.type=el.type==='password'?'text':'password';
-if(btn)btn.innerText=el.type==='password'?'👁️':'🙈';
-}
-function selectType(el,type){
-document.querySelectorAll('.typeCard').forEach(c=>c.classList.remove('active'));
-if(el)el.classList.add('active');
-let d=document.getElementById('typeDesc');
-if(!d)return;
-if(type==='COMPANY')d.innerHTML='<b>COMPANY:</b> Admin (CEO) + HR. Staff see own payroll and records.';
-else if(type==='NGO')d.innerHTML='<b>NGO:</b> Admin (Director) + HR. Beneficiaries and staff see own records.';
-else d.innerHTML='<b>SACCO / CHAMA:</b> Admin (Chair) + Treasurer. Members see their own savings, loans and balance.';
-let g=document.getElementById('gType');
-if(g)g.value=type==='SACCO'?'SACCO / CHAMA':type;
-}
-function updateCreateRoles(){
-let t=document.getElementById('gType').value;
-let adminT=document.getElementById('adminTitle');
-let secondT=document.getElementById('secondTitle');
-let treas=document.getElementById('gTreas');
-let tlogin=document.getElementById('gTLogin');
-if(t==='SACCO / CHAMA'){
-if(adminT)adminT.innerText='Admin - Chair';
-if(secondT)secondT.innerText='Treasurer';
-if(treas)treas.placeholder='Treasurer Full Name';
-if(tlogin)tlogin.placeholder='Treasurer Login - Email / Phone';
-}else if(t==='COMPANY'){
-if(adminT)adminT.innerText='Admin - CEO';
-if(secondT)secondT.innerText='HR';
-if(treas)treas.placeholder='HR Full Name';
-if(tlogin)tlogin.placeholder='HR Login - Email / Phone';
-}else{
-if(adminT)adminT.innerText='Admin - Director';
-if(secondT)secondT.innerText='HR / Coordinator';
-if(treas)treas.placeholder='HR Full Name';
-if(tlogin)tlogin.placeholder='HR Login - Email / Phone';
-}
-}
-function updateLoginHint(){
-let r=document.getElementById('lRole').value;
-let h=document.getElementById('loginHint');
-if(!h)return;
-if(r==='MEMBER')h.innerText='Member / Staff / Beneficiary: Use your Phone + Password given by Treasurer / HR.';
-else if(r==='TREASURER')h.innerText='Treasurer: Only for SACCO / CHAMA.';
-else if(r==='HR')h.innerText='HR: Only for COMPANY / NGO.';
-else h.innerText='Admin: Chair / CEO / Director login.';
-}
+function toggleEye(id,btn){let el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';if(btn)btn.innerText=el.type==='password'?'👁️':'🙈';}
+function selectType(el,type){document.querySelectorAll('.typeCard').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');let d=document.getElementById('typeDesc');if(!d)return;if(type==='COMPANY')d.innerHTML='<b>COMPANY:</b> Admin (CEO) + HR. Staff see own payroll and records.';else if(type==='NGO')d.innerHTML='<b>NGO:</b> Admin (Director) + HR. Beneficiaries and staff see own records.';else d.innerHTML='<b>SACCO / CHAMA:</b> Admin (Chair) + Treasurer. Members see their own savings, loans and balance.';let g=document.getElementById('gType');if(g)g.value=type==='SACCO'?'SACCO / CHAMA':type;}
+function updateCreateRoles(){let t=document.getElementById('gType').value;let adminT=document.getElementById('adminTitle');let secondT=document.getElementById('secondTitle');let treas=document.getElementById('gTreas');let tlogin=document.getElementById('gTLogin');if(t==='SACCO / CHAMA'){if(adminT)adminT.innerText='Admin - Chair';if(secondT)secondT.innerText='Treasurer';if(treas)treas.placeholder='Treasurer Full Name';if(tlogin)tlogin.placeholder='Treasurer Login - Email / Phone';}else if(t==='COMPANY'){if(adminT)adminT.innerText='Admin - CEO';if(secondT)secondT.innerText='HR';if(treas)treas.placeholder='HR Full Name';if(tlogin)tlogin.placeholder='HR Login - Email / Phone';}else{if(adminT)adminT.innerText='Admin - Director';if(secondT)secondT.innerText='HR / Coordinator';if(treas)treas.placeholder='HR Full Name';if(tlogin)tlogin.placeholder='HR Login - Email / Phone';}}
+function updateLoginHint(){let r=document.getElementById('lRole').value;let h=document.getElementById('loginHint');if(!h)return;if(r==='MEMBER')h.innerText='Member / Staff / Beneficiary: Use your Phone + Password given by Treasurer / HR.';else if(r==='TREASURER')h.innerText='Treasurer: Only for SACCO / CHAMA.';else if(r==='HR')h.innerText='HR: Only for COMPANY / NGO.';else h.innerText='Admin: Chair / CEO / Director login.';}
 function openTop(){document.getElementById('topMenu').classList.add('open');document.getElementById('overlay').classList.add('show')}
 function openInside(){if(!window.current)return;document.getElementById('sideMenu').classList.add('open');document.getElementById('overlay').classList.add('show')}
 function closeMenus(){document.getElementById('topMenu').classList.remove('open');document.getElementById('sideMenu').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
 function toggleSub(id){document.getElementById(id).classList.toggle('open')}
 function hideAll2(){['landing','createPage','loginPage','dash','ownerPage'].forEach(id=>document.getElementById(id).classList.add('hidden'))}
-function go(page){
-closeMenus();hideAll2();
-document.getElementById('landing').classList.remove('hidden');
-let t=document.getElementById('pageTitle'),d=document.getElementById('pageDesc'),p=document.getElementById('dynamicPage');
-let hs=document.getElementById('homeSections');
-checkOffline();
-if(page==='home'){
-t.innerText='Every Penny Tracked. Every Group Organised.';
-d.innerText='Loyal Vault brings all your group money, members and records into one simple place on your phone. Built to support M-PESA receipts, Chama contributions, Payroll and NGO Grants.';
-if(hs)hs.style.display='block';p.style.display='none';return;
-}
-if(hs)hs.style.display='none';p.style.display='block';
-if(page==='features'){
-t.innerText='Loyal Vault Features';d.innerText='Simple platform for SACCOs, Companies and NGOs.';
-p.innerHTML='<div class="bigcard"><h3>Members / Staff / Beneficiaries</h3><p>Treasurer / HR adds each person once with Phone and Password. Each person logs in on their own phone and sees only their own records in PRIVATE, or everyone in OPEN.</p></div><div class="bigcard"><h3>Contributions &amp; Savings</h3><p>Record Monthly, Weekly, Daily, Shares or Welfare. Every contribution is linked to a transaction, so your Total In is never double-counted.</p></div><div class="bigcard"><h3>Loans + Repayment</h3><p>Apply with amount, rate, months, guarantor and collateral. Treasurer / HR Approves or Rejects. Record Repayment with Loan ID and see Paid, Balance and Status.</p></div><div class="bigcard"><h3>Payroll + Salary History</h3><p>For COMPANY and NGO only. Gross - PAYE - NSSF - SHIF - Housing Levy - Loan - Advance = Net auto-calculated. Every month saved.</p></div><div class="bigcard"><h3>Receipts That Prove It</h3><p>Attach a photo to each expense. Scan printed M-PESA receipts. If no receipt, system marks it MISSING. View, Change or Delete on Edit.</p></div><div class="bigcard"><h3>Reports &amp; Backup</h3><p>Download Report, CSV / Excel, Member Statement, and Full Backup JSON. Restore backup on any phone.</p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';
-}
-if(page==='how'){t.innerText='How It Works';d.innerText='1. Create Group 2. Add Treasurer / HR 3. Treasurer / HR adds members 4. Chair sees everything 5. Download report';p.innerHTML='<div class="bigcard"><h3>How It Works</h3><p>Tap Get Started, choose SACCO / COMPANY / NGO, choose PRIVATE or OPEN, Trial 7 days, Pay to unlock, All members login on their own phones.</p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}
-if(page==='pricing'){t.innerText='Pricing - Loyal Vault';d.innerText='7 Days FREE Trial. Then KES 1500 per group per month.';p.innerHTML='<div class="bigcard"><h3>Pricing</h3><p><b>7 Days FREE</b><br>Then <b>KES 1500 / month / group</b><br>Day 8 auto locks if not paid. Pay = auto unlock.</p></div><button class="btn" onclick="showCreate()">Start Free Trial</button><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}
-if(page==='about'){t.innerText='About Us - Loyal Vault';d.innerText='Loyal Vault is a Kenyan company based in Nairobi.';p.innerHTML='<div class="bigcard"><h3>About Us</h3><p>Loyal Vault is a Kenyan company based in Nairobi. Chairs can see the full group clearly, Treasurers / HR can record money in seconds with receipt photos, and every Member, Staff or Beneficiary can login on their own phone and see their own records.</p><p><b>Every Penny Tracked. Every Group Organised.</b></p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}
-if(page==='support'){t.innerText='Support';d.innerText='FAQs, Help Centre, WhatsApp Us.';p.innerHTML='<div class="bigcard"><h3>Support - FAQs</h3><ul><li>How to create group? Tap Get Started.</li><li>Who adds members? Treasurer / HR only.</li><li>Scan not reading? Only printed text / M-PESA screenshot.</li><li>Trial ended? Admin pays to unlock.</li><li>Member sees nothing? Tap Refresh, use same Group Name + Group Password.</li></ul></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}
-if(page==='contact'){t.innerText='Contact Us';d.innerText='Nairobi, Kenya. Email: support@loyalvault.co.ke';p.innerHTML='<div class="bigcard"><h3>Contact Us</h3><p>Email: support@loyalvault.co.ke<br>Nairobi, Kenya</p><input placeholder="Your Name"><input placeholder="Your Phone"><textarea placeholder="Your Message"></textarea><button class="btn" onclick="alert(\'Message sent\')">Send Message</button></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}
-}
+function go(page){closeMenus();hideAll2();document.getElementById('landing').classList.remove('hidden');let t=document.getElementById('pageTitle'),d=document.getElementById('pageDesc'),p=document.getElementById('dynamicPage');let hs=document.getElementById('homeSections');checkOffline();if(page==='home'){t.innerText='Every Penny Tracked. Every Group Organised.';d.innerText='Loyal Vault brings all your group money, members and records into one simple place on your phone. Built to support M-PESA receipts, Chama contributions, Payroll and NGO Grants.';if(hs)hs.style.display='block';p.style.display='none';return;}if(hs)hs.style.display='none';p.style.display='block';if(page==='features'){t.innerText='Loyal Vault Features';d.innerText='Simple platform for SACCOs, Companies and NGOs.';p.innerHTML='<div class="bigcard"><h3>Members / Staff / Beneficiaries</h3><p>Treasurer / HR adds each person once with Phone and Password. Each person logs in on their own phone and sees only their own records in PRIVATE, or everyone in OPEN.</p></div><div class="bigcard"><h3>Contributions &amp; Savings</h3><p>Record Monthly, Weekly, Daily, Shares or Welfare. Every contribution is linked to a transaction, so your Total In is never double-counted.</p></div><div class="bigcard"><h3>Loans + Repayment</h3><p>Apply with amount, rate, months, guarantor and collateral. Treasurer / HR Approves or Rejects. Record Repayment with Loan ID and see Paid, Balance and Status.</p></div><div class="bigcard"><h3>Payroll + Salary History</h3><p>For COMPANY and NGO only. Gross - PAYE - NSSF - SHIF - Housing Levy - Loan - Advance = Net auto-calculated. Every month saved.</p></div><div class="bigcard"><h3>Receipts That Prove It</h3><p>Attach a photo to each expense. Scan printed M-PESA receipts. If no receipt, system marks it MISSING. View, Change or Delete on Edit.</p></div><div class="bigcard"><h3>Reports &amp; Backup</h3><p>Download Report, CSV / Excel, Member Statement, and Full Backup JSON. Restore backup on any phone.</p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}if(page==='how'){t.innerText='How It Works';d.innerText='1. Create Group 2. Add Treasurer / HR 3. Treasurer / HR adds members 4. Chair sees everything 5. Download report';p.innerHTML='<div class="bigcard"><h3>How It Works</h3><p>Tap Get Started, choose SACCO / COMPANY / NGO, choose PRIVATE or OPEN, Trial 7 days, Pay to unlock, All members login on their own phones.</p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}if(page==='pricing'){t.innerText='Pricing - Loyal Vault';d.innerText='7 Days FREE Trial. Then KES 1500 per group per month.';p.innerHTML='<div class="bigcard"><h3>Pricing</h3><p><b>7 Days FREE</b><br>Then <b>KES 1500 / month / group</b><br>Day 8 auto locks if not paid. Pay = auto unlock.</p></div><button class="btn" onclick="showCreate()">Start Free Trial</button><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}if(page==='about'){t.innerText='About Us - Loyal Vault';d.innerText='Loyal Vault is a Kenyan company based in Nairobi.';p.innerHTML='<div class="bigcard"><h3>About Us</h3><p>Loyal Vault is a Kenyan company based in Nairobi. Chairs can see the full group clearly, Treasurers / HR can record money in seconds with receipt photos, and every Member, Staff or Beneficiary can login on their own phone and see their own records.</p><p><b>Every Penny Tracked. Every Group Organised.</b></p></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}if(page==='support'){t.innerText='Support';d.innerText='FAQs, Help Centre, WhatsApp Us.';p.innerHTML='<div class="bigcard"><h3>Support - FAQs</h3><ul><li>How to create group? Tap Get Started.</li><li>Who adds members? Treasurer / HR only.</li><li>Scan not reading? Only printed text / M-PESA screenshot.</li><li>Trial ended? Admin pays to unlock.</li><li>Member sees nothing? Tap Refresh, use same Group Name + Group Password.</li></ul></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}if(page==='contact'){t.innerText='Contact Us';d.innerText='Nairobi, Kenya. Email: support@loyalvault.co.ke';p.innerHTML='<div class="bigcard"><h3>Contact Us</h3><p>Email: support@loyalvault.co.ke<br>Nairobi, Kenya</p><input placeholder="Your Name"><input placeholder="Your Phone"><textarea placeholder="Your Message"></textarea><button class="btn" onclick="alert(\'Message sent\')">Send Message</button></div><button class="btn btn3" onclick="go(\'home\')">Back To Home</button>';}}
 function showCreate(){closeMenus();hideAll2();document.getElementById('createPage').classList.remove('hidden');updateCreateRoles()}
 function showLogin(){closeMenus();hideAll2();document.getElementById('loginPage').classList.remove('hidden')}
 function closeOwner(){document.getElementById('ownerPage').classList.add('hidden');go('home')}
-document.getElementById('logoTap').addEventListener('click',()=>{
-let n=Date.now();if(n-lastTap>1500)taps=0;lastTap=n;taps++;
-if(taps>=3){taps=0;hideAll2();document.getElementById('ownerPage').classList.remove('hidden');document.getElementById('ownerPanelBody').classList.add('hidden');document.getElementById('ownerOtpBox').classList.remove('hidden');sendOwnerOTP();}
-});
-function sendOwnerOTP(){
-let otp=Math.floor(100000+Math.random()*900000).toString();
-localStorage.setItem('lv_owner_otp',otp);
-localStorage.setItem('lv_owner_otp_exp',Date.now()+10*60*1000);
-let m=document.getElementById('ownerOtpMsg');
-if(m)m.innerText='Sending OTP to owner email...';
-emailjs.send("service_d1sj9gc","template_x88ovyf",{to_name:'Owner',to_email:OWNER_EMAIL,passcode:otp,time:"10 minutes"}).then(()=>{if(m)m.innerText='OTP sent to owner email - Check inbox / spam. Valid 10 min.'}).catch(()=>{if(m)m.innerText='Failed to send OTP. Check internet and try Resend.'});
-}
+document.getElementById('logoTap').addEventListener('click',()=>{let n=Date.now();if(n-lastTap>1500)taps=0;lastTap=n;taps++;if(taps>=3){taps=0;hideAll2();document.getElementById('ownerPage').classList.remove('hidden');document.getElementById('ownerPanelBody').classList.add('hidden');document.getElementById('ownerOtpBox').classList.remove('hidden');sendOwnerOTP();}});
+function sendOwnerOTP(){let otp=Math.floor(100000+Math.random()*900000).toString();localStorage.setItem('lv_owner_otp',otp);localStorage.setItem('lv_owner_otp_exp',Date.now()+10*60*1000);let m=document.getElementById('ownerOtpMsg');if(m)m.innerText='Sending OTP to owner email...';emailjs.send("service_d1sj9gc","template_x88ovyf",{to_name:'Owner',to_email:OWNER_EMAIL,passcode:otp,time:"10 minutes"}).then(()=>{if(m)m.innerText='OTP sent to owner email - Check inbox / spam. Valid 10 min.'}).catch(()=>{if(m)m.innerText='Failed to send OTP. Check internet and try Resend.'});}
 function resendOwnerOTP(){sendOwnerOTP()}
-function verifyOwnerOTP(){
-let e=(document.getElementById('ownerOtpInput').value||'').trim();
-let saved=localStorage.getItem('lv_owner_otp');
-let exp=+localStorage.getItem('lv_owner_otp_exp');
-if(!e||e.length!==6){alert('Enter 6-digit OTP');return}
-if(Date.now()>exp){alert('OTP expired. Resend.');return}
-if(e!==saved){alert('Wrong OTP.');return}
-localStorage.removeItem('lv_owner_otp');
-document.getElementById('ownerOtpBox').classList.add('hidden');
-document.getElementById('ownerPanelBody').classList.remove('hidden');
-renderOwner();
-}
+function verifyOwnerOTP(){let e=(document.getElementById('ownerOtpInput').value||'').trim();let saved=localStorage.getItem('lv_owner_otp');let exp=+localStorage.getItem('lv_owner_otp_exp');if(!e||e.length!==6){alert('Enter 6-digit OTP');return}if(Date.now()>exp){alert('OTP expired. Resend.');return}if(e!==saved){alert('Wrong OTP.');return}localStorage.removeItem('lv_owner_otp');document.getElementById('ownerOtpBox').classList.add('hidden');document.getElementById('ownerPanelBody').classList.remove('hidden');renderOwner();}
 let state=JSON.parse(localStorage.getItem('loyalvault_v1')||'{"groups":[],"tx":[],"members":[],"loans":[],"repayments":[],"fines":[],"meetings":[],"contributions":[],"donors":[],"grants":[],"projects":[],"assets":[],"procurement":[],"payrolls":[],"sales":[],"departments":[],"merry":[],"savings":[],"dividends":[]}');
 ['dividends','sales','departments','merry','groups','tx','members','loans','repayments','fines','meetings','contributions','donors','grants','projects','assets','procurement','payrolls','savings'].forEach(k=>{if(!state[k])state[k]=[]});
 let current=null,currentRole='MEMBER';
 window.current=null;
 function isOpen(){return current&&(current.transparency||'PRIVATE')==='OPEN'}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
-function save(){
-localStorage.setItem('loyalvault_v1',JSON.stringify(state));
-if(db){try{db.ref('loyalvault_v1').transaction(cur=>{if(!cur)return state;let merged={...cur};Object.keys(state).forEach(k=>{let arr=state[k];if(Array.isArray(arr)){let old=cur[k]||[];let map=new Map();old.forEach(o=>map.set(o._id||JSON.stringify(o),o));arr.forEach(o=>map.set(o._id||JSON.stringify(o),o));merged[k]=Array.from(map.values());}else merged[k]=arr});return merged;});}catch(e){}}
-}
+function save(){localStorage.setItem('loyalvault_v1',JSON.stringify(state));if(db){try{db.ref('loyalvault_v1').transaction(cur=>{if(!cur)return state;let merged={...cur};Object.keys(state).forEach(k=>{let arr=state[k];if(Array.isArray(arr)){let old=cur[k]||[];let map=new Map();old.forEach(o=>map.set(o._id||JSON.stringify(o),o));arr.forEach(o=>map.set(o._id||JSON.stringify(o),o));merged[k]=Array.from(map.values());}else merged[k]=arr});return merged;});}catch(e){}}}
 function norm(s){return (s||'').trim().toLowerCase()}
 function txBelongsTo(tx,me){if(!me)return true;if(tx.forName)return norm(tx.forName)===norm(me);return (tx.desc||'').toLowerCase().includes(me.toLowerCase())}
-function getForName(s,o){
-let v=document.getElementById(s)?document.getElementById(s).value:'';
-let ot=document.getElementById(o)?(document.getElementById(o).value||'').trim():'';
-if(ot)return ot;if(v==='__GROUP__')return 'GROUP';if(v)return v;return '';
-}
-function refreshForDropdowns(){
-if(!current)return;
-let list=state.members.filter(x=>norm(x.group)===norm(current.name));
-['qInFor','qOutFor','eFor'].forEach(id=>{
-let el=document.getElementById(id);if(!el)return;let cur=el.value;
-el.innerHTML='<option value="">-- Choose Member / Staff --</option><option value="__GROUP__">GROUP / GENERAL</option>'+list.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
-if(cur)el.value=cur;
-});
-}
-function readFileAsDataURL(file,cb){
-if(!file){cb('');return}
-let img=new Image();let url=URL.createObjectURL(file);
-img.onload=()=>{let canvas=document.createElement('canvas');let scale=Math.min(1,800/img.width);canvas.width=img.width*scale;canvas.height=img.height*scale;let ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);cb(canvas.toDataURL('image/jpeg',0.7));};
-img.onerror=()=>cb('');img.src=url;
-}
-function scanReceipt(which){
-let fi=document.getElementById(which==='e'?'eFile':'qOutFile');
-if(!fi||!fi.files.length){alert('Choose receipt photo first');return}
-let msg=document.getElementById('scanMsgQ');if(msg)msg.innerText='Scanning... wait 10 sec...';
-Tesseract.recognize(fi.files[0],'eng').then(res=>{
-let t=res.data.text||'';
-let am=t.match(/(?:KSH|KES|Ksh|Amount|Total)[^\d]{0,10}([\d,]+\.?\d*)/i)||t.match(/([\d,]{3,}\.?\d*)/);
-let amt=am?parseFloat(am[1].replace(/,/g,'')):0;
-let code=(t.match(/[A-Z0-9]{10}/)||[''])[0];
-let dm=t.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);let date=dm?dm[1]:'';
-if(which==='e'){if(amt)document.getElementById('eAmt').value=amt;if(code)document.getElementById('eReceipt').value=code;if(date)document.getElementById('eDate').value=date;}
-else{if(amt)document.getElementById('qOutAmt').value=amt;if(code)document.getElementById('qOutReceipt').value=code;if(date)document.getElementById('qOutDate').value=date;}
-if(msg)msg.innerText='Scan done - CHECK before Save.';
-alert('Scan done. Amount: '+(amt||'not found')+' - CHECK before Save');
-}).catch(()=>{alert('Scan failed - type manually')});
-}
-function syncFromFirebase(cb){
-showLoad(true);
-if(!db){showLoad(false);cb&&cb();return}
-db.ref('loyalvault_v1').once('value').then(s=>{
-let v=s.val();
-if(v){Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))state[k]=v[k]});localStorage.setItem('loyalvault_v1',JSON.stringify(state));}
-showLoad(false);cb&&cb();
-}).catch(()=>{showLoad(false);cb&&cb()});
-}
-function refreshFromFirebase(){
-if(!current)return;
-syncFromFirebase(()=>{
-let g=state.groups.find(x=>norm(x.name)===norm(current.name));
-if(g)current.transparency=g.transparency||'PRIVATE';
-renderTx();renderDashMembers();refreshForDropdowns();
-alert('Refreshed - Transparency: '+(current.transparency||'PRIVATE'));
-});
-}
-function createGroup(){
-syncFromFirebase(()=>{
-let g={_id:uid(),name:(document.getElementById('gName').value||'').trim(),type:document.getElementById('gType').value,groupPass:document.getElementById('gGroupPass').value,transparency:document.getElementById('gTransp').value||'PRIVATE',admin:document.getElementById('gAdmin').value,login:document.getElementById('gLogin').value.trim(),pass:document.getElementById('gPass').value,treas:document.getElementById('gTreas').value,tlogin:document.getElementById('gTLogin').value.trim(),tpass:document.getElementById('gTPass').value,paystack:localStorage.getItem('ownerPaystack')||OWNER_KEY,created:Date.now(),paid:false};
-if(!g.name||!g.groupPass||!g.pass||!g.tpass||!g.login){alert('Fill all required fields');return}
-if(state.groups.some(x=>norm(x.name)===norm(g.name))){alert('This group name already exists. Login instead.');showLogin();return}
-state.groups.push(g);save();
-alert('Group Created! 7 Days FREE. Transparency: '+g.transparency+' - Second role: '+(g.type==='SACCO / CHAMA'?'Treasurer':'HR'));
-showLogin();
-});
-}
-function paySub(){
-let price=+(localStorage.getItem('ownerPrice')||1500);
-if(db){db.ref('loyalvault_v1/ownerPrice').once('value').then(s=>{if(s.val())price=+s.val();doPay(price)}).catch(()=>doPay(price))}else doPay(price);
-}
-function doPay(price){
-let realEmail=(current&&current.login&&current.login.includes('@'))?current.login:prompt("Enter your REAL email for Paystack receipt:");
-if(!realEmail||!realEmail.includes('@')){alert('Real email needed');return}
-let h=PaystackPop.setup({key:localStorage.getItem('ownerPaystack')||OWNER_KEY,email:realEmail,amount:price*100,currency:'KES',callback:function(r){current.paid=true;let g=state.groups.find(x=>x.name===current.name);if(g)g.paid=true;save();alert('Payment Success! '+r.reference);location.reload()},onClose:function(){alert('Payment closed')}});
-h.openIframe();
-}
+function getForName(s,o){let v=document.getElementById(s)?document.getElementById(s).value:'';let ot=document.getElementById(o)?(document.getElementById(o).value||'').trim():'';if(ot)return ot;if(v==='__GROUP__')return 'GROUP';if(v)return v;return '';}
+function refreshForDropdowns(){if(!current)return;let list=state.members.filter(x=>norm(x.group)===norm(current.name));['qInFor','qOutFor','eFor'].forEach(id=>{let el=document.getElementById(id);if(!el)return;let cur=el.value;el.innerHTML='<option value="">-- Choose Member / Staff --</option><option value="__GROUP__">GROUP / GENERAL</option>'+list.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');if(cur)el.value=cur;});}
+function readFileAsDataURL(file,cb){if(!file){cb('');return}let img=new Image();let url=URL.createObjectURL(file);img.onload=()=>{let canvas=document.createElement('canvas');let scale=Math.min(1,800/img.width);canvas.width=img.width*scale;canvas.height=img.height*scale;let ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);cb(canvas.toDataURL('image/jpeg',0.7));};img.onerror=()=>cb('');img.src=url;}
+function scanReceipt(which){let fi=document.getElementById(which==='e'?'eFile':'qOutFile');if(!fi||!fi.files.length){alert('Choose receipt photo first');return}let msg=document.getElementById('scanMsgQ');if(msg)msg.innerText='Scanning... wait 10 sec...';Tesseract.recognize(fi.files[0],'eng').then(res=>{let t=res.data.text||'';let am=t.match(/(?:KSH|KES|Ksh|Amount|Total)[^\d]{0,10}([\d,]+\.?\d*)/i)||t.match(/([\d,]{3,}\.?\d*)/);let amt=am?parseFloat(am[1].replace(/,/g,'')):0;let code=(t.match(/[A-Z0-9]{10}/)||[''])[0];let dm=t.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);let date=dm?dm[1]:'';if(which==='e'){if(amt)document.getElementById('eAmt').value=amt;if(code)document.getElementById('eReceipt').value=code;if(date)document.getElementById('eDate').value=date;}else{if(amt)document.getElementById('qOutAmt').value=amt;if(code)document.getElementById('qOutReceipt').value=code;if(date)document.getElementById('qOutDate').value=date;}if(msg)msg.innerText='Scan done - CHECK before Save.';alert('Scan done. Amount: '+(amt||'not found')+' - CHECK before Save')}).catch(()=>{alert('Scan failed - type manually')});}
+function syncFromFirebase(cb){showLoad(true);if(!db){showLoad(false);cb&&cb();return}db.ref('loyalvault_v1').once('value').then(s=>{let v=s.val();if(v){Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))state[k]=v[k]});localStorage.setItem('loyalvault_v1',JSON.stringify(state));}showLoad(false);cb&&cb();}).catch(()=>{showLoad(false);cb&&cb()});}
+function refreshFromFirebase(){if(!current)return;syncFromFirebase(()=>{let g=state.groups.find(x=>norm(x.name)===norm(current.name));if(g)current.transparency=g.transparency||'PRIVATE';renderTx();renderDashMembers();refreshForDropdowns();alert('Refreshed - Transparency: '+(current.transparency||'PRIVATE'));});}
+function createGroup(){syncFromFirebase(()=>{let g={_id:uid(),name:(document.getElementById('gName').value||'').trim(),type:document.getElementById('gType').value,groupPass:document.getElementById('gGroupPass').value,transparency:document.getElementById('gTransp').value||'PRIVATE',admin:document.getElementById('gAdmin').value,login:document.getElementById('gLogin').value.trim(),pass:document.getElementById('gPass').value,treas:document.getElementById('gTreas').value,tlogin:document.getElementById('gTLogin').value.trim(),tpass:document.getElementById('gTPass').value,paystack:localStorage.getItem('ownerPaystack')||OWNER_KEY,created:Date.now(),paid:false};if(!g.name||!g.groupPass||!g.pass||!g.tpass||!g.login){alert('Fill all required fields');return}if(state.groups.some(x=>norm(x.name)===norm(g.name))){alert('This group name already exists. Login instead.');showLogin();return}state.groups.push(g);save();alert('Group Created! 7 Days FREE. Transparency: '+g.transparency+' - Second role: '+(g.type==='SACCO / CHAMA'?'Treasurer':'HR'));showLogin();});}
+function paySub(){let price=+(localStorage.getItem('ownerPrice')||1500);if(db){db.ref('loyalvault_v1/ownerPrice').once('value').then(s=>{if(s.val())price=+s.val();doPay(price)}).catch(()=>doPay(price))}else doPay(price);}
+function doPay(price){let realEmail=(current&&current.login&&current.login.includes('@'))?current.login:prompt("Enter your REAL email for Paystack receipt:");if(!realEmail||!realEmail.includes('@')){alert('Real email needed');return}let h=PaystackPop.setup({key:localStorage.getItem('ownerPaystack')||OWNER_KEY,email:realEmail,amount:price*100,currency:'KES',callback:function(r){current.paid=true;let g=state.groups.find(x=>x.name===current.name);if(g)g.paid=true;save();alert('Payment Success! '+r.reference);location.reload()},onClose:function(){alert('Payment closed')}});h.openIframe();}
 function roleLabel(){if(current.type==='COMPANY')return 'STAFF';if(current.type==='NGO')return 'BENEFICIARY';return 'MEMBER'}
 let pendingLoginGroup=null;
-function doLoginStep1(){
-showLoad(true);
-syncFromFirebase(()=>{
-showLoad(false);
-let gn=norm(document.getElementById('lGroup').value);
-let gp=document.getElementById('lGroupPass').value;
-let g=state.groups.find(x=>norm(x.name)===gn);
-if(!g||g.groupPass!==gp){document.getElementById('loginMsg').innerText='Group or password incorrect.';return}
-pendingLoginGroup=g;
-document.getElementById('lType').value=g.type;
-document.getElementById('loginStep2').classList.remove('hidden');
-document.getElementById('loginMsg').innerText='Group found: '+esc(g.name)+' - Now enter YOUR details below.';
-});
-}
+function doLoginStep1(){showLoad(true);syncFromFirebase(()=>{showLoad(false);let gn=norm(document.getElementById('lGroup').value);let gp=document.getElementById('lGroupPass').value;let g=state.groups.find(x=>norm(x.name)===gn);if(!g||g.groupPass!==gp){document.getElementById('loginMsg').innerText='Group or password incorrect.';return}pendingLoginGroup=g;document.getElementById('lType').value=g.type;document.getElementById('loginStep2').classList.remove('hidden');document.getElementById('loginMsg').innerText='Group found: '+esc(g.name)+' - Now enter YOUR details below.';});}
 function forgotPass(){alert('Tell your Treasurer / HR: In Members list, tap Reset Password for your name. Treasurer / HR will give you a new password.')}
-function doLoginStep2(){
-let g=pendingLoginGroup;
-if(!g){alert('Start from Step 1');return}
-let user=document.getElementById('lUser').value.trim(),pass=document.getElementById('lPass').value,role=document.getElementById('lRole').value;
-if(!user||!pass){document.getElementById('loginMsg').innerText='Enter your Phone + Password. Both are required.';return}
-let cm='';
-if(role==='ADMIN'&&(g.login!==user||g.pass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
-if(role==='TREASURER'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
-if(role==='HR'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
-if(role==='MEMBER'){
-let mem=state.members.find(x=>norm(x.group)===norm(g.name)&&(x.phone||'').trim()===user);
-if(!mem){document.getElementById('loginMsg').innerText='Member not found with this Phone. Ask Treasurer / HR to add you first. Use Phone, not Name.';return}
-if(!mem.pass||mem.pass!==pass){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
-cm=mem.name;
-}
-window._currentMember=cm;
-let days=Math.floor((Date.now()-g.created)/86400000)+1;
-if(days>7&&!g.paid){document.getElementById('loginMsg').innerHTML='TRIAL ENDED Day '+days+'. LOCKED. Pay to unlock.';current=g;window.current=g;return}
-current=g;window.current=g;currentRole=role;
-if(!current.transparency)current.transparency='PRIVATE';
-hideAll2();document.getElementById('dash').classList.remove('hidden');
-let lbl=role==='MEMBER'?roleLabel():role;
-document.getElementById('dashTitle').innerText=g.name+' - '+g.type+(cm?' - Welcome '+lbl+' '+cm:'');
-document.getElementById('dashSub').innerText='Logged as: '+lbl+(cm?' | '+cm:'')+' | Admin: '+g.admin+' | '+(g.type==='SACCO / CHAMA'?'Treasurer: ':'HR: ')+g.treas;
-document.getElementById('trialInfo').innerHTML='Day '+days+'/7 | '+(g.paid?'PAID':'FREE TRIAL');
-document.getElementById('trialWarn').innerText=(days===6)?'WARNING: Pay tomorrow or you will be locked Day 8':(days===7?'WARNING: TODAY is last FREE day - Pay now or locked tomorrow':'');
-document.getElementById('transpInfo').innerText='Transparency: '+(current.transparency||'PRIVATE')+(isOpen()?' - You see EVERYONE':' - You see ONLY YOURSELF + Group Total');
-document.getElementById('notifBar').innerText=localStorage.getItem('ownerNotif')||'';
-updateMemberBalance();
-if(role==='MEMBER'){
-document.getElementById('quickAddCard').style.display='none';
-document.getElementById('dashAddMemberCard').style.display='none';
-document.getElementById('panelTitle').innerText='My Records - '+cm;
-document.getElementById('panelBody').innerHTML='<p class="small">You see GROUP TOTAL + '+(isOpen()?'EVERYONE (OPEN)':'ONLY YOUR OWN (PRIVATE)')+'</p><button class="btn" onclick="showMyFullAudit()">Show My Records</button><div id="myFullAudit"></div>';
-}else if(role==='HR'){
-document.getElementById('quickAddCard').style.display='none';
-document.getElementById('dashAddMemberCard').style.display='block';
-}else{
-document.getElementById('quickAddCard').style.display='block';
-document.getElementById('dashAddMemberCard').style.display='none';
-}
-buildInside();renderTx();renderDashMembers();refreshForDropdowns();applyOwnerContact();
-}
-function applyOwnerContact(){
-let em=localStorage.getItem('ownerEmail')||'support@loyalvault.co.ke';
-let wa=localStorage.getItem('ownerWhats')||'+254 700 000 000';
-let fe=document.getElementById('footerEmail');if(fe)fe.innerText=em;
-let fw=document.getElementById('footerWhats');if(fw)fw.innerText=wa;
-}
-function updateMemberBalance(){
-let el=document.getElementById('memberBalanceBox');if(!el)return;
-if(currentRole!=='MEMBER'||!window._currentMember){el.innerHTML='';return}
-let me=window._currentMember;
-let saved=state.savings.filter(x=>norm(x.group)===norm(current.name)&&x.name===me).reduce((a,b)=>a+b.amt,0);
-let contrib=state.contributions.filter(x=>norm(x.group)===norm(current.name)&&x.name===me).reduce((a,b)=>a+b.amt,0);
-let loans=state.loans.filter(x=>norm(x.group)===norm(current.name)&&x.name===me);
-let borrowed=loans.reduce((a,b)=>a+b.total,0);
-let repaid=state.repayments.filter(x=>norm(x.group)===norm(current.name)&&x.loanId&&loans.some(l=>l._id===x.loanId)).reduce((a,b)=>a+b.amt,0);
-let owe=Math.max(0,borrowed-repaid);
-el.innerHTML=`<b>MY BALANCE - ${esc(me)}</b><br>Saved: KES ${saved.toLocaleString()} | Contributions: KES ${contrib.toLocaleString()} | Borrowed Total: KES ${borrowed.toLocaleString()} | Repaid: KES ${repaid.toLocaleString()} | <b>You Owe: KES ${owe.toLocaleString()}</b>`;
-}
+function doLoginStep2(){let g=pendingLoginGroup;if(!g){alert('Start from Step 1');return}let user=document.getElementById('lUser').value.trim(),pass=document.getElementById('lPass').value,role=document.getElementById('lRole').value;if(!user||!pass){document.getElementById('loginMsg').innerText='Enter your Phone + Password. Both are required.';return}let cm='';if(role==='ADMIN'&&(g.login!==user||g.pass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}if(role==='TREASURER'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}if(role==='HR'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}if(role==='MEMBER'){let mem=state.members.find(x=>norm(x.group)===norm(g.name)&&(x.phone||'').trim()===user);if(!mem){document.getElementById('loginMsg').innerText='Member not found with this Phone. Ask Treasurer / HR to add you first. Use Phone, not Name.';return}if(!mem.pass||mem.pass!==pass){document.getElementById('loginMsg').innerText='Incorrect login details.';return}cm=mem.name;}window._currentMember=cm;let days=Math.floor((Date.now()-g.created)/86400000)+1;if(days>7&&!g.paid){document.getElementById('loginMsg').innerHTML='TRIAL ENDED Day '+days+'. LOCKED. Pay to unlock.';current=g;window.current=g;return}current=g;window.current=g;currentRole=role;if(!current.transparency)current.transparency='PRIVATE';hideAll2();document.getElementById('dash').classList.remove('hidden');let lbl=role==='MEMBER'?roleLabel():role;document.getElementById('dashTitle').innerText=g.name+' - '+g.type+(cm?' - Welcome '+lbl+' '+cm:'');document.getElementById('dashSub').innerText='Logged as: '+lbl+(cm?' | '+cm:'')+' | Admin: '+g.admin+' | '+(g.type==='SACCO / CHAMA'?'Treasurer: ':'HR: ')+g.treas;document.getElementById('trialInfo').innerHTML='Day '+days+'/7 | '+(g.paid?'PAID':'FREE TRIAL');document.getElementById('trialWarn').innerText=(days===6)?'WARNING: Pay tomorrow or you will be locked Day 8':(days===7?'WARNING: TODAY is last FREE day - Pay now or locked tomorrow':'');document.getElementById('transpInfo').innerText='Transparency: '+(current.transparency||'PRIVATE')+(isOpen()?' - You see EVERYONE':' - You see ONLY YOURSELF + Group Total');document.getElementById('notifBar').innerText=localStorage.getItem('ownerNotif')||'';updateMemberBalance();
+// NEW: MEMBER PAY - SACCO/CHAMA ONLY - SHOW/HIDE
+let payCard=document.getElementById('memberPayCard');if(payCard){if(role==='MEMBER'&&current.type==='SACCO / CHAMA'){payCard.style.display='block';}else{payCard.style.display='none';}}let paySel=document.getElementById('payForType');if(paySel){paySel.onchange=function(){let lb=document.getElementById('payForLoanId');if(lb)lb.style.display=(paySel.value==='Loan Repayment')?'block':'none';};}
+if(role==='MEMBER'){document.getElementById('quickAddCard').style.display='none';document.getElementById('dashAddMemberCard').style.display='none';document.getElementById('panelTitle').innerText='My Records - '+cm;document.getElementById('panelBody').innerHTML='<p class="small">You see GROUP TOTAL + '+(isOpen()?'EVERYONE (OPEN)':'ONLY YOUR OWN (PRIVATE)')+'</p><button class="btn" onclick="showMyFullAudit()">Show My Records</button><div id="myFullAudit"></div>';}else if(role==='HR'){document.getElementById('quickAddCard').style.display='none';document.getElementById('dashAddMemberCard').style.display='block';}else{document.getElementById('quickAddCard').style.display='block';document.getElementById('dashAddMemberCard').style.display='none';}buildInside();renderTx();renderDashMembers();refreshForDropdowns();applyOwnerContact();}
+function applyOwnerContact(){let em=localStorage.getItem('ownerEmail')||'support@loyalvault.co.ke';let wa=localStorage.getItem('ownerWhats')||'+254 700 000 000';let fe=document.getElementById('footerEmail');if(fe)fe.innerText=em;let fw=document.getElementById('footerWhats');if(fw)fw.innerText=wa;}
+function updateMemberBalance(){let el=document.getElementById('memberBalanceBox');if(!el)return;if(currentRole!=='MEMBER'||!window._currentMember){el.innerHTML='';return}let me=window._currentMember;let saved=state.savings.filter(x=>norm(x.group)===norm(current.name)&&x.name===me).reduce((a,b)=>a+b.amt,0);let contrib=state.contributions.filter(x=>norm(x.group)===norm(current.name)&&x.name===me).reduce((a,b)=>a+b.amt,0);let loans=state.loans.filter(x=>norm(x.group)===norm(current.name)&&x.name===me);let borrowed=loans.reduce((a,b)=>a+b.total,0);let repaid=state.repayments.filter(x=>norm(x.group)===norm(current.name)&&x.loanId&&loans.some(l=>l._id===x.loanId)).reduce((a,b)=>a+b.amt,0);let owe=Math.max(0,borrowed-repaid);el.innerHTML=`<b>MY BALANCE - ${esc(me)}</b><br>Saved: KES ${saved.toLocaleString()} | Contributions: KES ${contrib.toLocaleString()} | Borrowed Total: KES ${borrowed.toLocaleString()} | Repaid: KES ${repaid.toLocaleString()} | <b>You Owe: KES ${owe.toLocaleString()}</b>`;}
+// NEW: MEMBER PAY WITH PAYSTACK - SACCO/CHAMA ONLY - KEY FROM TREASURER SETTINGS
+function memberPayWithPaystack(){if(currentRole!=='MEMBER'){alert('Only Member can pay here');return}if(!current||current.type!=='SACCO / CHAMA'){alert('Paystack Member Pay is SACCO / CHAMA only');return}let payFor=document.getElementById('payForType').value;let amt=+document.getElementById('payForAmt').value||0;let email=(document.getElementById('payForEmail').value||'').trim();let loanId=(document.getElementById('payForLoanId').value||'').trim();let me=window._currentMember;if(!amt){alert('Enter Amount');return}if(!email||!email.includes('@')){alert('Enter real email for Paystack receipt');return}if(payFor==='Loan Repayment'&&!loanId){alert('Enter Loan ID for Loan Repayment - Copy from Loans table');return}let key=(current.paystack||'').trim();if(!key){alert('No Paystack Key set. Ask Treasurer to put Group Paystack Key in Settings > Group Paystack Key');return}let msg=document.getElementById('payForMsg');if(msg)msg.innerText='Opening Paystack... Do NOT close.';let h=PaystackPop.setup({key:key,email:email,amount:amt*100,currency:'KES',ref:'LV-'+Date.now(),callback:function(r){let txId=uid();let date=kenyaDate();if(payFor==='Savings'){state.savings.push({_id:uid(),group:current.name,name:me,amt,type:'Regular Savings',date,txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'Savings - Regular Savings - Paystack '+r.reference,amt,date});}else if(payFor==='Loan Repayment'){let loan=state.loans.find(x=>x._id===loanId&&norm(x.group)===norm(current.name));if(!loan){alert('Loan ID not found - Payment succeeded but NOT recorded. Show this Ref to Treasurer: '+r.reference);return}state.repayments.push({_id:uid(),group:current.name,loanId,name:me,amt,date,txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'Loan Repayment - Loan '+loanId+' - Paystack '+r.reference,amt,date});}else if(payFor==='Fine'){state.fines.push({_id:uid(),group:current.name,name:me,amt,reason:'Paid via Paystack '+r.reference});state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'Fine - Paystack '+r.reference,amt,date});}else if(payFor==='Merry-Go-Round'){state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'Merry-Go-Round - Paystack '+r.reference,amt,date});}else if(payFor==='Welfare'){state.contributions.push({_id:uid(),group:current.name,name:me,amt,type:'Welfare',date,txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'For: '+me+' - Contribution - Welfare - Paystack '+r.reference,amt,date});}else{state.contributions.push({_id:uid(),group:current.name,name:me,amt,type:'Monthly',date,txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:me,desc:'For: '+me+' - Contribution - Monthly - Paystack '+r.reference,amt,date});}save();renderTx();updateMemberBalance();if(msg)msg.innerText='Payment Success! Ref: '+r.reference+' - Recorded as '+payFor;alert('Payment Success! '+payFor+' KES '+amt+' recorded. Ref: '+r.reference);document.getElementById('payForAmt').value='';},onClose:function(){if(msg)msg.innerText='Payment closed - Not recorded.';}});h.openIframe();}
 function logout(){current=null;window.current=null;currentRole='MEMBER';window._currentMember='';closeMenus();go('home')}
-function buildInside(){
-let menus={'SACCO / CHAMA':['Dashboard','Members','Contributions','Savings','Loans','Loan Application','Dividends','Merry-Go-Round','Fines','Meetings','Expenditure','Receipts','Reports / Downloads','Settings'],COMPANY:['Dashboard','Staff','Departments','Payroll','Sales','Contributions','Loans','Expenditure','Receipts','Reports / Downloads','Settings'],NGO:['Dashboard','Donors','Grants','Projects','Beneficiaries','Procurement','Payroll','Loans','Expenditure','Receipts','Asset Register','Reports / Downloads','Settings']};
-let m=menus[current.type];
-if(currentRole==='MEMBER'){m=m.filter(x=>!['Donors','Grants','Procurement','Asset Register','Settings','Departments','Sales','Meetings','Expenditure'].includes(x));}
-if(currentRole==='HR'){m=['Dashboard','Staff','Departments','Payroll','Reports / Downloads'];}
-document.getElementById('sideTitle').innerText=current.name+' - Group Menu';
-document.getElementById('insideMenuBox').innerHTML=m.map(x=>`<button onclick="openPanel('${x}');closeMenus()">${esc(x)}</button>`).join('');
-}
-function showMyFullAudit(){
-let me=window._currentMember;
-let c=state.contributions.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));
-let l=state.loans.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));
-let p=state.payrolls.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));
-let tx=state.tx.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:txBelongsTo(x,me)));
-let el=document.getElementById('myFullAudit');if(!el)return;
-el.innerHTML=`<h4>${isOpen()?'GROUP RECORDS - EVERYONE - OPEN':'MY RECORDS - '+esc(me)+' - PRIVATE'}</h4><p class="small"><b>Contributions: KES ${c.reduce((a,b)=>a+b.amt,0).toLocaleString()}</b><br>${c.map(x=>esc(x.date)+' - '+esc(x.name)+' - '+esc(x.type)+' - KES '+x.amt).join('<br>')||'None'}</p><p class="small"><b>Loans: ${l.map(x=>esc(x.name)+' - Loan '+x.amt+' - Total '+x.total+' - Status '+esc(x.status)).join('<br>')||'None'}</b></p><p class="small"><b>Payroll: KES ${p.reduce((a,b)=>a+b.net,0).toLocaleString()}</b><br>${p.map(x=>esc(x.date)+' - '+esc(x.name)+' - Dept: '+esc(x.dept||'-')+' - Gross '+x.gross+' - Advance '+(x.advance||0)+' - Net '+x.net).join('<br>')||'None'}</p><p class="small"><b>Transactions:</b><br>${tx.map(x=>esc(x.date)+' - '+esc(x.type)+' - '+esc(x.desc)+' - KES '+x.amt).join('<br>')||'None'}</p><button class="btn btn3" onclick="downloadMemberStatement()">Download Statement</button>`;
-}
-function openPanel(name){
-document.getElementById('panelTitle').innerText=name+' - '+current.type;
-let b=document.getElementById('panelBody');
-if(name==='Dividends'){b.innerHTML=`<p class="small">DIRECT DIVIDENDS - Type total profit, system shares by each member savings.</p><input id="dvTotal" type="number" placeholder="Total Profit To Share KES"><button class="btn btn2" onclick="calcDividends()">Calculate Dividends Direct</button><div id="dvList"></div>`;renderDividends();return}
-if(name==='Savings'){b.innerHTML=`<input id="svName" placeholder="Member Name" autocomplete="off"><input id="svAmt" type="number" placeholder="Savings Amount KES"><select id="svType"><option>Regular Savings</option><option>Fixed Savings</option><option>Emergency Savings</option></select><button class="btn" onclick="addSaving()">Add Savings</button><div id="savList"></div>`;renderSavings();return}
-if(name==='Members'||name==='Staff'||name==='Beneficiaries'){
-if(currentRole==='MEMBER'){b.innerHTML='<div id="myFullAudit"></div>';showMyFullAudit();return}
-document.getElementById('dashAddMemberCard').style.display='block';
-let isChama=current.type==='SACCO / CHAMA';
-let memberForm=isChama
-? `<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"><button class="btn" onclick="addMember()">Add Member - Treasurer Only</button><div id="memberList"></div>`
-: `<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><input id="mKra" placeholder="KRA PIN" autocomplete="off"></div><div class="row"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"></div><div class="row"><input id="mKin" placeholder="Next of Kin Name" autocomplete="off"><input id="mKinPhone" placeholder="Next of Kin Phone" autocomplete="off"></div><div class="row"><input id="mDept" placeholder="Department - e.g. Finance" autocomplete="off"><input id="mRole2" placeholder="Role / Job Title" autocomplete="off"></div><button class="btn" onclick="addMember()">Add Member - Treasurer / HR Only</button><div id="memberList"></div>`;
-b.innerHTML=memberForm;renderMembers();
-}
-else if(name==='Loan Application'){
-if(current.type!=='SACCO / CHAMA'){b.innerHTML='<p class="small">Loan Application is only for SACCO / CHAMA.</p>';return}
-b.innerHTML=`<input id="lnName" placeholder="Applicant Full Name" autocomplete="off"><div class="row"><input id="lnID" placeholder="Applicant ID" autocomplete="off"><input id="lnPhone" placeholder="Applicant Phone" autocomplete="off"></div><input id="lnAmt" type="number" placeholder="Loan Amount KES"><div class="row"><input id="lnRate" type="number" value="10"><input id="lnMonths" type="number" value="6"></div><input id="lnGuar" placeholder="Guarantor Full Name" autocomplete="off"><input id="lnColl" placeholder="Collateral" autocomplete="off"><button class="btn" onclick="applyLoan()">Submit Loan</button><div id="loanList"></div>`;renderLoans();
-}
-else if(name==='Loans'){b.innerHTML=`<div id="loanList2"></div><hr><h4>Record Loan Repayment</h4><input id="rpLoanId" placeholder="Paste Loan ID from table" autocomplete="off"><input id="rpAmt" type="number" placeholder="Repayment Amount KES"><input id="rpDate" type="date"><button class="btn btn2" onclick="addRepayment()">Record Repayment</button><div id="repList"></div>`;renderLoans('loanList2');renderRepayments();}
-else if(name==='Payroll'){
-if(current.type==='SACCO / CHAMA'){b.innerHTML='<p class="small">Payroll is for COMPANY and NGO only.</p>';return}
-if(currentRole==='MEMBER'){b.innerHTML=`<h4>My Salary History</h4><div id="payrollList"></div>`;renderPayrolls();return}
-if(currentRole==='TREASURER'&&current.type==='COMPANY'){b.innerHTML='<p class="small">Payroll for COMPANY is done by HR, not Treasurer. Ask HR to login.</p>';return}
-b.innerHTML=`<div class="row"><input id="pName" placeholder="Staff Name" autocomplete="off"><input id="pDept" placeholder="Department - e.g. Finance" autocomplete="off"></div><div class="row"><input id="pGross" type="number" placeholder="Gross Salary"><input id="pMonth" type="month"></div><div class="row"><input id="pPaye" type="number" placeholder="PAYE"><input id="pNssf" type="number" placeholder="NSSF"></div><div class="row"><input id="pShif" type="number" placeholder="SHIF"><input id="pHousing" type="number" placeholder="Housing Levy"></div><div class="row"><input id="pLoan" type="number" placeholder="Loan Deduction"><input id="pAdvance" type="number" placeholder="Staff Advance Taken This Month"></div><button class="btn" onclick="addPayroll()">Calculate Payroll + Save To Salary History</button><p class="small">Salary History: Every month you save here stays in history. Staff can see their own history.</p><div id="payrollList"></div>`;renderPayrolls();
-}
-else if(name==='Contributions'){b.innerHTML=`<div class="row"><input id="cName" placeholder="Member Name" autocomplete="off"><input id="cAmt" type="number" placeholder="Amount KES"></div><div class="row"><select id="cType"><option>Monthly</option><option>Weekly</option><option>Daily</option><option>Shares</option><option>Welfare</option></select><input id="cDate" type="date"></div><button class="btn" onclick="addContribution()">Add Contribution - Treasurer / HR Only</button><div id="contList"></div>`;renderContributions();}
-else if(name==='Fines'){b.innerHTML=`<div class="row"><input id="fName" placeholder="Member" autocomplete="off"><input id="fAmt" type="number" placeholder="Fine Amount"></div><input id="fReason" placeholder="Reason" autocomplete="off"><button class="btn" onclick="addFine()">Add Fine</button><div id="fineList"></div>`;renderFines();}
-else if(name==='Meetings'){b.innerHTML=`<input id="mtTitle" placeholder="Meeting Title" autocomplete="off"><input id="mtDate" type="date"><textarea id="mtMinutes" placeholder="Minutes / Agenda"></textarea><input id="mtAttend" placeholder="Attendance" autocomplete="off"><button class="btn" onclick="addMeeting()">Save Meeting</button><div id="meetList"></div>`;renderMeetings();}
-else if(name==='Merry-Go-Round'){b.innerHTML=`<input id="mgName" placeholder="Receiver Name" autocomplete="off"><input id="mgAmt" type="number" placeholder="Amount"><input id="mgOrder" type="number" placeholder="Order No"><input id="mgDate" type="date"><button class="btn" onclick="addMerry()">Save Merry-Go-Round</button><div id="mgList"></div>`;renderMerry();}
-else if(name==='Donors'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private - Only Admin / HR.</p>';return}b.innerHTML=`<div class="row"><input id="dName" placeholder="Donor Name" autocomplete="off"><input id="dPhone" placeholder="Donor Phone" autocomplete="off"></div><input id="dAmt" type="number" placeholder="Donation Amount"><input id="dDate" type="date"><button class="btn" onclick="addDonor()">Add Donor</button><div id="donorList"></div>`;renderDonors();}
-else if(name==='Grants'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<div class="row"><input id="grName" placeholder="Grant Name" autocomplete="off"><input id="grRecv" type="number" placeholder="Received KES"></div><input id="grSpent" type="number" placeholder="Spent KES"><button class="btn" onclick="addGrant()">Save Grant</button><div id="grantList"></div>`;renderGrants();}
-else if(name==='Projects'){b.innerHTML=`<input id="prName" placeholder="Project Name" autocomplete="off"><div class="row"><input id="prBudget" type="number" placeholder="Budget"><input id="prBenef" type="number" placeholder="Beneficiaries Count"></div><input id="prStatus" placeholder="Status" autocomplete="off"><button class="btn" onclick="addProject()">Save Project</button><div id="projList"></div>`;renderProjects();}
-else if(name==='Procurement'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<input id="pcItem" placeholder="Item" autocomplete="off"><div class="row"><input id="pcVendor" placeholder="Vendor" autocomplete="off"><input id="pcAmt" type="number" placeholder="Amount"></div><input id="pcQuote" placeholder="Quotation No" autocomplete="off"><button class="btn" onclick="addProcurement()">Save Procurement</button><div id="procList"></div>`;renderProcurement();}
-else if(name==='Asset Register'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<input id="aName" placeholder="Asset" autocomplete="off"><div class="row"><input id="aVal" type="number" placeholder="Value KES"><input id="aDate" type="date"></div><button class="btn" onclick="addAsset()">Save Asset</button><div id="assetList"></div>`;renderAssets();}
-else if(name==='Sales'){b.innerHTML=`<input id="sItem" placeholder="Product / Service" autocomplete="off"><input id="sAmt" type="number" placeholder="Amount KES"><input id="sCust" placeholder="Customer" autocomplete="off"><input id="sDate" type="date"><button class="btn" onclick="addSale()">Add Sale</button><div id="saleList"></div>`;renderSales();}
-else if(name==='Departments'){b.innerHTML=`<input id="depName" placeholder="Department" autocomplete="off"><input id="depHead" placeholder="Department Head" autocomplete="off"><input id="depCount" type="number" placeholder="Members Count"><button class="btn" onclick="addDept()">Add Department</button><div id="deptList"></div>`;renderDepts();}
-else if(name==='Receipts'){b.innerHTML=`<p class="small">If no receipt = MISSING. MEMBER in PRIVATE sees only his own.</p><div id="receiptList"></div>`;renderReceipts();}
-else if(name==='Expenditure'){b.innerHTML=`<label>Expenditure - For WHO?</label><select id="eFor"><option value="">-- Choose Member --</option><option value="__GROUP__">GROUP / GENERAL</option></select><input id="eForOther" placeholder="Or type name" autocomplete="off"><input id="eDesc" placeholder="Expense Description" autocomplete="off"><input id="eAmt" type="number" placeholder="Amount"><input id="eVendor" placeholder="Vendor" autocomplete="off"><input id="eDate" type="date"><input id="eReceipt" placeholder="Receipt No - Empty = MISSING" autocomplete="off"><label>Receipt Photo - For THIS Expense Only</label><input type="file" id="eFile" accept="image/*"><button class="btn" style="background:#0a7a42" onclick="scanReceipt('e')">Scan Receipt</button><button class="btn" onclick="addExpense()">Add Expenditure</button>`;refreshForDropdowns();}
-else if(name==='Reports / Downloads'){if(currentRole==='MEMBER'){b.innerHTML=`<button class="btn btn3" onclick="downloadMemberStatement()">Download Statement</button><div id="myFullAudit"></div>`;showMyFullAudit();return}b.innerHTML=`<button class="btn" onclick="window.print()">Print Report</button><button class="btn btn3" onclick="downloadCSV()">Download CSV / Excel</button><button class="btn btn3" onclick="downloadMemberStatement()">Download Member Statement</button><button class="btn btn3" onclick="exportBackup()">Download Backup</button><button class="btn btn3" onclick="openInside()">Back To Group Menu</button>`;}
-else if(name==='Settings'){b.innerHTML=`<label>Group Paystack Key</label><input id="setPay" value="${esc(current.paystack||'')}" autocomplete="off"><button class="btn" onclick="savePay()">Save Paystack Key</button><hr><h3>Change My Password</h3><div class="passwrap"><input id="chgOld" type="password" placeholder="Old Password" autocomplete="off"><button type="button" class="eye" onclick="toggleEye('chgOld',this)">👁️</button></div><div class="passwrap"><input id="chgNew" type="password" placeholder="New Password" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('chgNew',this)">👁️</button></div><button class="btn btn2" onclick="changeMyPass()">Change My Password</button><hr><h3>Transparency - Treasurer / HR / Admin Only</h3><select id="setTransp"><option ${current.transparency==='OPEN'?'':'selected'}>PRIVATE</option><option ${current.transparency==='OPEN'?'selected':''}>OPEN</option></select><button class="btn btn2" onclick="saveTransparency()">Save Transparency</button><p class="small">Current: <b>${esc(current.transparency||'PRIVATE')}</b></p><button class="btn btn3" onclick="openInside()">Back To Group Menu</button>`;}
-else if(name==='Dashboard'){b.innerHTML=`<button class="btn" onclick="showMyFullAudit()">Show Records</button><div id="myFullAudit"></div>`;showMyFullAudit();}
-else{b.innerHTML=`<input id="genTitle" placeholder="${esc(name)} - Title" autocomplete="off"><input id="genAmt" type="number" placeholder="Amount"><button class="btn" onclick="addGeneric('${esc(name)}')">Save ${esc(name)}</button><div id="genList"></div>`;renderGeneric(name);}
-}
-function changeMyPass(){
-let oldP=document.getElementById('chgOld').value,newP=document.getElementById('chgNew').value;
-if(!newP||newP.length<4){alert('New password must be 4+ chars');return}
-let g=state.groups.find(x=>norm(x.name)===norm(current.name));
-if(currentRole==='ADMIN'){if(g.pass!==oldP){alert('Old password wrong');return}g.pass=newP;}
-else if(currentRole==='TREASURER'||currentRole==='HR'){if(g.tpass!==oldP){alert('Old password wrong');return}g.tpass=newP;}
-else{let m=state.members.find(x=>norm(x.group)===norm(current.name)&&x.name===window._currentMember);if(!m||m.pass!==oldP){alert('Old password wrong');return}m.pass=newP;}
-save();alert('Password Changed - Use new password next login');
-}
+function buildInside(){let menus={'SACCO / CHAMA':['Dashboard','Members','Contributions','Savings','Loans','Loan Application','Dividends','Merry-Go-Round','Fines','Meetings','Expenditure','Receipts','Reports / Downloads','Settings'],COMPANY:['Dashboard','Staff','Departments','Payroll','Sales','Contributions','Loans','Expenditure','Receipts','Reports / Downloads','Settings'],NGO:['Dashboard','Donors','Grants','Projects','Beneficiaries','Procurement','Payroll','Loans','Expenditure','Receipts','Asset Register','Reports / Downloads','Settings']};let m=menus[current.type];if(currentRole==='MEMBER'){m=m.filter(x=>!['Donors','Grants','Procurement','Asset Register','Settings','Departments','Sales','Meetings','Expenditure'].includes(x));}if(currentRole==='HR'){m=['Dashboard','Staff','Departments','Payroll','Reports / Downloads'];}document.getElementById('sideTitle').innerText=current.name+' - Group Menu';document.getElementById('insideMenuBox').innerHTML=m.map(x=>`<button onclick="openPanel('${x}');closeMenus()">${esc(x)}</button>`).join('');}
+function showMyFullAudit(){let me=window._currentMember;let c=state.contributions.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));let l=state.loans.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));let p=state.payrolls.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:x.name===me));let tx=state.tx.filter(x=>norm(x.group)===norm(current.name)&&(isOpen()?true:txBelongsTo(x,me)));let el=document.getElementById('myFullAudit');if(!el)return;el.innerHTML=`<h4>${isOpen()?'GROUP RECORDS - EVERYONE - OPEN':'MY RECORDS - '+esc(me)+' - PRIVATE'}</h4><p class="small"><b>Contributions: KES ${c.reduce((a,b)=>a+b.amt,0).toLocaleString()}</b><br>${c.map(x=>esc(x.date)+' - '+esc(x.name)+' - '+esc(x.type)+' - KES '+x.amt).join('<br>')||'None'}</p><p class="small"><b>Loans: ${l.map(x=>esc(x.name)+' - Loan '+x.amt+' - Total '+x.total+' - Status '+esc(x.status)).join('<br>')||'None'}</b></p><p class="small"><b>Payroll: KES ${p.reduce((a,b)=>a+b.net,0).toLocaleString()}</b><br>${p.map(x=>esc(x.date)+' - '+esc(x.name)+' - Dept: '+esc(x.dept||'-')+' - Gross '+x.gross+' - Advance '+(x.advance||0)+' - Net '+x.net).join('<br>')||'None'}</p><p class="small"><b>Transactions:</b><br>${tx.map(x=>esc(x.date)+' - '+esc(x.type)+' - '+esc(x.desc)+' - KES '+x.amt).join('<br>')||'None'}</p><button class="btn btn3" onclick="downloadMemberStatement()">Download Statement</button>`;}
+function openPanel(name){document.getElementById('panelTitle').innerText=name+' - '+current.type;let b=document.getElementById('panelBody');if(name==='Dividends'){b.innerHTML=`<p class="small">DIRECT DIVIDENDS - Type total profit, system shares by each member savings.</p><input id="dvTotal" type="number" placeholder="Total Profit To Share KES"><button class="btn btn2" onclick="calcDividends()">Calculate Dividends Direct</button><div id="dvList"></div>`;renderDividends();return}if(name==='Savings'){b.innerHTML=`<input id="svName" placeholder="Member Name" autocomplete="off"><input id="svAmt" type="number" placeholder="Savings Amount KES"><select id="svType"><option>Regular Savings</option><option>Fixed Savings</option><option>Emergency Savings</option></select><button class="btn" onclick="addSaving()">Add Savings</button><div id="savList"></div>`;renderSavings();return}if(name==='Members'||name==='Staff'||name==='Beneficiaries'){if(currentRole==='MEMBER'){b.innerHTML='<div id="myFullAudit"></div>';showMyFullAudit();return}document.getElementById('dashAddMemberCard').style.display='block';let isChama=current.type==='SACCO / CHAMA';let memberForm=isChama?`<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"><button class="btn" onclick="addMember()">Add Member - Treasurer Only</button><div id="memberList"></div>`:`<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><input id="mKra" placeholder="KRA PIN" autocomplete="off"></div><div class="row"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"></div><div class="row"><input id="mKin" placeholder="Next of Kin Name" autocomplete="off"><input id="mKinPhone" placeholder="Next of Kin Phone" autocomplete="off"></div><div class="row"><input id="mDept" placeholder="Department - e.g. Finance" autocomplete="off"><input id="mRole2" placeholder="Role / Job Title" autocomplete="off"></div><button class="btn" onclick="addMember()">Add Member - Treasurer / HR Only</button><div id="memberList"></div>`;b.innerHTML=memberForm;renderMembers();}else if(name==='Loan Application'){if(current.type!=='SACCO / CHAMA'){b.innerHTML='<p class="small">Loan Application is only for SACCO / CHAMA.</p>';return}b.innerHTML=`<input id="lnName" placeholder="Applicant Full Name" autocomplete="off"><div class="row"><input id="lnID" placeholder="Applicant ID" autocomplete="off"><input id="lnPhone" placeholder="Applicant Phone" autocomplete="off"></div><input id="lnAmt" type="number" placeholder="Loan Amount KES"><div class="row"><input id="lnRate" type="number" value="10"><input id="lnMonths" type="number" value="6"></div><input id="lnGuar" placeholder="Guarantor Full Name" autocomplete="off"><input id="lnColl" placeholder="Collateral" autocomplete="off"><button class="btn" onclick="applyLoan()">Submit Loan</button><div id="loanList"></div>`;renderLoans();}else if(name==='Loans'){b.innerHTML=`<div id="loanList2"></div><hr><h4>Record Loan Repayment</h4><input id="rpLoanId" placeholder="Paste Loan ID from table" autocomplete="off"><input id="rpAmt" type="number" placeholder="Repayment Amount KES"><input id="rpDate" type="date"><button class="btn btn2" onclick="addRepayment()">Record Repayment</button><div id="repList"></div>`;renderLoans('loanList2');renderRepayments();}else if(name==='Payroll'){if(current.type==='SACCO / CHAMA'){b.innerHTML='<p class="small">Payroll is for COMPANY and NGO only.</p>';return}if(currentRole==='MEMBER'){b.innerHTML=`<h4>My Salary History</h4><div id="payrollList"></div>`;renderPayrolls();return}if(currentRole==='TREASURER'&&current.type==='COMPANY'){b.innerHTML='<p class="small">Payroll for COMPANY is done by HR, not Treasurer. Ask HR to login.</p>';return}b.innerHTML=`<div class="row"><input id="pName" placeholder="Staff Name" autocomplete="off"><input id="pDept" placeholder="Department - e.g. Finance" autocomplete="off"></div><div class="row"><input id="pGross" type="number" placeholder="Gross Salary"><input id="pMonth" type="month"></div><div class="row"><input id="pPaye" type="number" placeholder="PAYE"><input id="pNssf" type="number" placeholder="NSSF"></div><div class="row"><input id="pShif" type="number" placeholder="SHIF"><input id="pHousing" type="number" placeholder="Housing Levy"></div><div class="row"><input id="pLoan" type="number" placeholder="Loan Deduction"><input id="pAdvance" type="number" placeholder="Staff Advance Taken This Month"></div><button class="btn" onclick="addPayroll()">Calculate Payroll + Save To Salary History</button><p class="small">Salary History: Every month you save here stays in history. Staff can see their own history.</p><div id="payrollList"></div>`;renderPayrolls();}else if(name==='Contributions'){b.innerHTML=`<div class="row"><input id="cName" placeholder="Member Name" autocomplete="off"><input id="cAmt" type="number" placeholder="Amount KES"></div><div class="row"><select id="cType"><option>Monthly</option><option>Weekly</option><option>Daily</option><option>Shares</option><option>Welfare</option></select><input id="cDate" type="date"></div><button class="btn" onclick="addContribution()">Add Contribution - Treasurer / HR Only</button><div id="contList"></div>`;renderContributions();}else if(name==='Fines'){b.innerHTML=`<div class="row"><input id="fName" placeholder="Member" autocomplete="off"><input id="fAmt" type="number" placeholder="Fine Amount"></div><input id="fReason" placeholder="Reason" autocomplete="off"><button class="btn" onclick="addFine()">Add Fine</button><div id="fineList"></div>`;renderFines();}else if(name==='Meetings'){b.innerHTML=`<input id="mtTitle" placeholder="Meeting Title" autocomplete="off"><input id="mtDate" type="date"><textarea id="mtMinutes" placeholder="Minutes / Agenda"></textarea><input id="mtAttend" placeholder="Attendance" autocomplete="off"><button class="btn" onclick="addMeeting()">Save Meeting</button><div id="meetList"></div>`;renderMeetings();}else if(name==='Merry-Go-Round'){b.innerHTML=`<input id="mgName" placeholder="Receiver Name" autocomplete="off"><input id="mgAmt" type="number" placeholder="Amount"><input id="mgOrder" type="number" placeholder="Order No"><input id="mgDate" type="date"><button class="btn" onclick="addMerry()">Save Merry-Go-Round</button><div id="mgList"></div>`;renderMerry();}else if(name==='Donors'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private - Only Admin / HR.</p>';return}b.innerHTML=`<div class="row"><input id="dName" placeholder="Donor Name" autocomplete="off"><input id="dPhone" placeholder="Donor Phone" autocomplete="off"></div><input id="dAmt" type="number" placeholder="Donation Amount"><input id="dDate" type="date"><button class="btn" onclick="addDonor()">Add Donor</button><div id="donorList"></div>`;renderDonors();}else if(name==='Grants'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<div class="row"><input id="grName" placeholder="Grant Name" autocomplete="off"><input id="grRecv" type="number" placeholder="Received KES"></div><input id="grSpent" type="number" placeholder="Spent KES"><button class="btn" onclick="addGrant()">Save Grant</button><div id="grantList"></div>`;renderGrants();}else if(name==='Projects'){b.innerHTML=`<input id="prName" placeholder="Project Name" autocomplete="off"><div class="row"><input id="prBudget" type="number" placeholder="Budget"><input id="prBenef" type="number" placeholder="Beneficiaries Count"></div><input id="prStatus" placeholder="Status" autocomplete="off"><button class="btn" onclick="addProject()">Save Project</button><div id="projList"></div>`;renderProjects();}else if(name==='Procurement'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<input id="pcItem" placeholder="Item" autocomplete="off"><div class="row"><input id="pcVendor" placeholder="Vendor" autocomplete="off"><input id="pcAmt" type="number" placeholder="Amount"></div><input id="pcQuote" placeholder="Quotation No" autocomplete="off"><button class="btn" onclick="addProcurement()">Save Procurement</button><div id="procList"></div>`;renderProcurement();}else if(name==='Asset Register'){if(currentRole==='MEMBER'){b.innerHTML='<p class="small">Private.</p>';return}b.innerHTML=`<input id="aName" placeholder="Asset" autocomplete="off"><div class="row"><input id="aVal" type="number" placeholder="Value KES"><input id="aDate" type="date"></div><button class="btn" onclick="addAsset()">Save Asset</button><div id="assetList"></div>`;renderAssets();}else if(name==='Sales'){b.innerHTML=`<input id="sItem" placeholder="Product / Service" autocomplete="off"><input id="sAmt" type="number" placeholder="Amount KES"><input id="sCust" placeholder="Customer" autocomplete="off"><input id="sDate" type="date"><button class="btn" onclick="addSale()">Add Sale</button><div id="saleList"></div>`;renderSales();}else if(name==='Departments'){b.innerHTML=`<input id="depName" placeholder="Department" autocomplete="off"><input id="depHead" placeholder="Department Head" autocomplete="off"><input id="depCount" type="number" placeholder="Members Count"><button class="btn" onclick="addDept()">Add Department</button><div id="deptList"></div>`;renderDepts();}else if(name==='Receipts'){b.innerHTML=`<p class="small">If no receipt = MISSING. MEMBER in PRIVATE sees only his own.</p><div id="receiptList"></div>`;renderReceipts();}else if(name==='Expenditure'){b.innerHTML=`<label>Expenditure - For WHO?</label><select id="eFor"><option value="">-- Choose Member --</option><option value="__GROUP__">GROUP / GENERAL</option></select><input id="eForOther" placeholder="Or type name" autocomplete="off"><input id="eDesc" placeholder="Expense Description" autocomplete="off"><input id="eAmt" type="number" placeholder="Amount"><input id="eVendor" placeholder="Vendor" autocomplete="off"><input id="eDate" type="date"><input id="eReceipt" placeholder="Receipt No - Empty = MISSING" autocomplete="off"><label>Receipt Photo - For THIS Expense Only</label><input type="file" id="eFile" accept="image/*"><button class="btn" style="background:#0a7a42" onclick="scanReceipt('e')">Scan Receipt</button><button class="btn" onclick="addExpense()">Add Expenditure</button>`;refreshForDropdowns();}else if(name==='Reports / Downloads'){if(currentRole==='MEMBER'){b.innerHTML=`<button class="btn btn3" onclick="downloadMemberStatement()">Download Statement</button><div id="myFullAudit"></div>`;showMyFullAudit();return}b.innerHTML=`<button class="btn" onclick="window.print()">Print Report</button><button class="btn btn3" onclick="downloadCSV()">Download CSV / Excel</button><button class="btn btn3" onclick="downloadMemberStatement()">Download Member Statement</button><button class="btn btn3" onclick="exportBackup()">Download Backup</button><button class="btn btn3" onclick="openInside()">Back To Group Menu</button>`;}else if(name==='Settings'){b.innerHTML=`<label>Group Paystack Key</label><input id="setPay" value="${esc(current.paystack||'')}" autocomplete="off"><button class="btn" onclick="savePay()">Save Paystack Key</button><hr><h3>Change My Password</h3><div class="passwrap"><input id="chgOld" type="password" placeholder="Old Password" autocomplete="off"><button type="button" class="eye" onclick="toggleEye('chgOld',this)">👁️</button></div><div class="passwrap"><input id="chgNew" type="password" placeholder="New Password" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('chgNew',this)">👁️</button></div><button class="btn btn2" onclick="changeMyPass()">Change My Password</button><hr><h3>Transparency - Treasurer / HR / Admin Only</h3><select id="setTransp"><option ${current.transparency==='OPEN'?'':'selected'}>PRIVATE</option><option ${current.transparency==='OPEN'?'selected':''}>OPEN</option></select><button class="btn btn2" onclick="saveTransparency()">Save Transparency</button><p class="small">Current: <b>${esc(current.transparency||'PRIVATE')}</b></p><button class="btn btn3" onclick="openInside()">Back To Group Menu</button>`;}else if(name==='Dashboard'){b.innerHTML=`<button class="btn" onclick="showMyFullAudit()">Show Records</button><div id="myFullAudit"></div>`;showMyFullAudit();}else{b.innerHTML=`<input id="genTitle" placeholder="${esc(name)} - Title" autocomplete="off"><input id="genAmt" type="number" placeholder="Amount"><button class="btn" onclick="addGeneric('${esc(name)}')">Save ${esc(name)}</button><div id="genList"></div>`;renderGeneric(name);}}
+function changeMyPass(){let oldP=document.getElementById('chgOld').value,newP=document.getElementById('chgNew').value;if(!newP||newP.length<4){alert('New password must be 4+ chars');return}let g=state.groups.find(x=>norm(x.name)===norm(current.name));if(currentRole==='ADMIN'){if(g.pass!==oldP){alert('Old password wrong');return}g.pass=newP;}else if(currentRole==='TREASURER'||currentRole==='HR'){if(g.tpass!==oldP){alert('Old password wrong');return}g.tpass=newP;}else{let m=state.members.find(x=>norm(x.group)===norm(current.name)&&x.name===window._currentMember);if(!m||m.pass!==oldP){alert('Old password wrong');return}m.pass=newP;}save();alert('Password Changed - Use new password next login');}
 function savePay(){let g=state.groups.find(x=>norm(x.name)===norm(current.name));if(g)g.paystack=document.getElementById('setPay').value;save();alert('Paystack Key Saved')}
-function saveTransparency(){
-if(currentRole!=='TREASURER'&&currentRole!=='HR'&&currentRole!=='ADMIN'){alert('Only Treasurer / HR / Admin');return}
-let v=document.getElementById('setTransp').value;current.transparency=v;
-let g=state.groups.find(x=>norm(x.name)===norm(current.name));if(g)g.transparency=v;save();
-alert('Transparency SAVED: '+v);renderTx();
-}
-function exportBackup(){
-let data={exportedAt:new Date().toISOString(),group:current?current.name:'ALL',state};
-let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='loyalvault-backup-'+(current?current.name:'all')+'-'+kenyaDate()+'.json';a.click();alert('Backup Downloaded - Keep it safe');
-}
-function importBackup(e){
-let f=e.target.files[0];if(!f)return;let r=new FileReader();
-r.onload=()=>{try{let d=JSON.parse(r.result);if(d.state)state=d.state;else state=d;localStorage.setItem('loyalvault_v1',JSON.stringify(state));save();alert('Backup Restored - Refresh page');location.reload();}catch(err){alert('Invalid backup file')}};
-r.readAsText(f);
-}
+function saveTransparency(){if(currentRole!=='TREASURER'&&currentRole!=='HR'&&currentRole!=='ADMIN'){alert('Only Treasurer / HR / Admin');return}let v=document.getElementById('setTransp').value;current.transparency=v;let g=state.groups.find(x=>norm(x.name)===norm(current.name));if(g)g.transparency=v;save();alert('Transparency SAVED: '+v);renderTx();}
+function exportBackup(){let data={exportedAt:new Date().toISOString(),group:current?current.name:'ALL',state};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='loyalvault-backup-'+(current?current.name:'all')+'-'+kenyaDate()+'.json';a.click();alert('Backup Downloaded - Keep it safe');}
+function importBackup(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(d.state)state=d.state;else state=d;localStorage.setItem('loyalvault_v1',JSON.stringify(state));save();alert('Backup Restored - Refresh page');location.reload();}catch(err){alert('Invalid backup file')}};r.readAsText(f);}
 function canAddMember(){return ['TREASURER','HR','ADMIN'].includes(currentRole)}
-function addMemberFromDash(){
-if(!canAddMember()){alert('Only TREASURER / HR / ADMIN');return}
-let m={_id:uid(),group:current.name,name:document.getElementById('dmName').value.trim(),id:document.getElementById('dmID').value.trim(),phone:(document.getElementById('dmPhone').value||'').trim(),kra:'',kin:'',kinPhone:'',dept:'',role2:'',pass:document.getElementById('dmPass').value};
-if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Member Password - NO default password. You MUST type a password.');return}
-if(m.pass.length<4){alert('Password must be 4+ chars');return}
-if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}
-state.members.push(m);save();renderDashMembers();refreshForDropdowns();alert('Member Added: '+m.name+' - Login: '+m.phone);
-}
-function renderDashMembers(){
-let el=document.getElementById('dashMemberList');if(!el)return;
-let l=state.members.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML='<h4>Members ('+l.length+')</h4><table><tr><th>Name</th><th>Dept</th><th class="pii">Phone</th><th>Action</th></tr>'+l.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.dept||'-')}</td><td class="pii">${esc(x.phone)}</td><td><button onclick="editMemberById('${x._id}')">Edit</button> <button onclick="deleteMemberById('${x._id}')">Delete</button> <button onclick="resetMemberPass('${x._id}')">Reset Pass</button></td></tr>`).join('')+'</table>';
-}
-function addMember(){
-if(!canAddMember()){alert('Only TREASURER / HR');return}
-let m={_id:uid(),group:current.name,name:document.getElementById('mName').value,id:document.getElementById('mID')?document.getElementById('mID').value:'',phone:(document.getElementById('mPhone').value||'').trim(),kra:document.getElementById('mKra')?document.getElementById('mKra').value:'',kin:document.getElementById('mKin')?document.getElementById('mKin').value:'',kinPhone:document.getElementById('mKinPhone')?document.getElementById('mKinPhone').value:'',dept:document.getElementById('mDept')?document.getElementById('mDept').value.trim():'',role2:document.getElementById('mRole2')?document.getElementById('mRole2').value.trim():'',pass:document.getElementById('mPass').value};
-if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Password - NO default password. You MUST type a password.');return}
-if(m.pass.length<4){alert('Password must be 4+ chars');return}
-if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}
-state.members.push(m);save();renderMembers();renderDashMembers();refreshForDropdowns();alert('Member Added: '+m.name+' - Login: '+m.phone);
-}
-function renderMembers(){
-let el=document.getElementById('memberList');if(!el)return;
-let q=(document.getElementById('memberSearch')?.value||'').toLowerCase();
-let l=state.members.filter(x=>norm(x.group)===norm(current.name)&&(!q||x.name.toLowerCase().includes(q)||(x.phone||'').includes(q)));
-el.innerHTML='<h4>Members ('+l.length+')</h4><table><tr><th>Name</th><th>Dept</th><th>ID</th><th class="pii">Phone</th><th>Action</th></tr>'+l.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.dept||'-')}</td><td>${esc(x.id)}</td><td class="pii">${esc(x.phone)}</td><td><button onclick="editMemberById('${x._id}')">Edit</button> <button onclick="deleteMemberById('${x._id}')">Delete</button> <button onclick="resetMemberPass('${x._id}')">Reset Pass</button></td></tr>`).join('')+'</table>';
-}
-function editMemberById(id){
-let m=state.members.find(x=>x._id===id);if(!m)return;
-let n=prompt("Edit Name:",m.name);if(n!==null)m.name=n;
-let p=prompt("Edit Phone - This is their Login:",m.phone);if(p!==null)m.phone=p;
-let d=prompt("Edit Department:",m.dept||'');if(d!==null)m.dept=d;
-save();renderMembers();renderDashMembers();
-}
+function addMemberFromDash(){if(!canAddMember()){alert('Only TREASURER / HR / ADMIN');return}let m={_id:uid(),group:current.name,name:document.getElementById('dmName').value.trim(),id:document.getElementById('dmID').value.trim(),phone:(document.getElementById('dmPhone').value||'').trim(),kra:'',kin:'',kinPhone:'',dept:'',role2:'',pass:document.getElementById('dmPass').value};if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Member Password - NO default password. You MUST type a password.');return}if(m.pass.length<4){alert('Password must be 4+ chars');return}if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}state.members.push(m);save();renderDashMembers();refreshForDropdowns();alert('Member Added: '+m.name+' - Login: '+m.phone);}
+function renderDashMembers(){let el=document.getElementById('dashMemberList');if(!el)return;let l=state.members.filter(x=>norm(x.group)===norm(current.name));el.innerHTML='<h4>Members ('+l.length+')</h4><table><tr><th>Name</th><th>Dept</th><th class="pii">Phone</th><th>Action</th></tr>'+l.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.dept||'-')}</td><td class="pii">${esc(x.phone)}</td><td><button onclick="editMemberById('${x._id}')">Edit</button> <button onclick="deleteMemberById('${x._id}')">Delete</button> <button onclick="resetMemberPass('${x._id}')">Reset Pass</button></td></tr>`).join('')+'</table>';}
+function addMember(){if(!canAddMember()){alert('Only TREASURER / HR');return}let m={_id:uid(),group:current.name,name:document.getElementById('mName').value,id:document.getElementById('mID')?document.getElementById('mID').value:'',phone:(document.getElementById('mPhone').value||'').trim(),kra:document.getElementById('mKra')?document.getElementById('mKra').value:'',kin:document.getElementById('mKin')?document.getElementById('mKin').value:'',kinPhone:document.getElementById('mKinPhone')?document.getElementById('mKinPhone').value:'',dept:document.getElementById('mDept')?document.getElementById('mDept').value.trim():'',role2:document.getElementById('mRole2')?document.getElementById('mRole2').value.trim():'',pass:document.getElementById('mPass').value};if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Password - NO default password. You MUST type a password.');return}if(m.pass.length<4){alert('Password must be 4+ chars');return}if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}state.members.push(m);save();renderMembers();renderDashMembers();refreshForDropdowns();alert('Member Added: '+m.name+' - Login: '+m.phone);}
+function renderMembers(){let el=document.getElementById('memberList');if(!el)return;let q=(document.getElementById('memberSearch')?.value||'').toLowerCase();let l=state.members.filter(x=>norm(x.group)===norm(current.name)&&(!q||x.name.toLowerCase().includes(q)||(x.phone||'').includes(q)));el.innerHTML='<h4>Members ('+l.length+')</h4><table><tr><th>Name</th><th>Dept</th><th>ID</th><th class="pii">Phone</th><th>Action</th></tr>'+l.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.dept||'-')}</td><td>${esc(x.id)}</td><td class="pii">${esc(x.phone)}</td><td><button onclick="editMemberById('${x._id}')">Edit</button> <button onclick="deleteMemberById('${x._id}')">Delete</button> <button onclick="resetMemberPass('${x._id}')">Reset Pass</button></td></tr>`).join('')+'</table>';}
+function editMemberById(id){let m=state.members.find(x=>x._id===id);if(!m)return;let n=prompt("Edit Name:",m.name);if(n!==null)m.name=n;let p=prompt("Edit Phone - This is their Login:",m.phone);if(p!==null)m.phone=p;let d=prompt("Edit Department:",m.dept||'');if(d!==null)m.dept=d;save();renderMembers();renderDashMembers();}
 function deleteMemberById(id){if(!confirm('Delete this member?'))return;state.members=state.members.filter(x=>x._id!==id);save();renderMembers();renderDashMembers();}
-function resetMemberPass(id){
-let m=state.members.find(x=>x._id===id);if(!m)return;
-let np=prompt("New password for "+m.name+" (tell them privately, type it - system will NOT make one):");
-if(np&&np.length>=4){m.pass=np;save();alert('Password reset for '+m.name+' - Tell them new password privately, do NOT post in group');}
-else if(np){alert('Password must be 4+ chars');}
-}
-function addSaving(){
-let amt=+document.getElementById('svAmt').value||0;
-if(!amt||!document.getElementById('svName').value){alert('Fill Name + Amount');return}
-let txId=uid();
-state.savings.push({_id:uid(),group:current.name,name:document.getElementById('svName').value,amt,type:document.getElementById('svType').value,date:kenyaDate(),txId});
-state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('svName').value,desc:'Savings - '+document.getElementById('svType').value,amt,date:kenyaDate()});
-save();renderTx();renderSavings();updateMemberBalance();
-}
-function renderSavings(){
-let el=document.getElementById('savList');if(!el)return;
-let l=state.savings.filter(x=>norm(x.group)===norm(current.name));
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);
-el.innerHTML='<b>Total Savings: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${esc(x.type)} - KES ${x.amt} <button onclick="deleteSavingById('${x._id}')">Delete</button></p>`).join('')||'No savings yet';
-}
-function deleteSavingById(id){
-if(!confirm('Delete this saving? Linked transaction will also be deleted.'))return;
-let s=state.savings.find(x=>x._id===id);if(s&&s.txId)state.tx=state.tx.filter(x=>x._id!==s.txId);
-state.savings=state.savings.filter(x=>x._id!==id);save();renderSavings();renderTx();
-}
-function applyLoan(){
-let amt=+document.getElementById('lnAmt').value||0,rate=+document.getElementById('lnRate').value||0,months=+document.getElementById('lnMonths').value||0;
-let interest=amt*rate*months/100,total=amt+interest,monthly=months?total/months:0;
-let l={_id:uid(),group:current.name,name:currentRole==='MEMBER'?window._currentMember:document.getElementById('lnName').value,id:document.getElementById('lnID').value,phone:document.getElementById('lnPhone').value,amt,rate,months,interest,total,monthly,guar:document.getElementById('lnGuar').value,coll:document.getElementById('lnColl').value,status:'PENDING',paid:0};
-if(!l.name||!amt){alert('Fill Name + Amount');return}
-state.loans.push(l);save();renderLoans();alert('Loan Saved - ID: '+l._id+' - Keep this ID for Repayment');
-}
-function renderLoans(id){
-let el=document.getElementById(id||'loanList');if(!el)return;
-let l=state.loans.filter(x=>norm(x.group)===norm(current.name));
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);
-el.innerHTML='<h4>Loans ('+l.length+')</h4><table><tr><th>Loan ID</th><th>Name</th><th>Amt</th><th>Total</th><th>Monthly</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr>'+l.map(x=>{let paid=state.repayments.filter(r=>r.loanId===x._id).reduce((a,b)=>a+b.amt,0);return `<tr><td>${esc(x._id)}</td><td>${esc(x.name)}</td><td>${x.amt}</td><td>${x.total}</td><td>${Math.round(x.monthly)}</td><td>${paid}</td><td>${Math.max(0,x.total-paid)}</td><td>${esc(x.status)}</td><td>${(currentRole==='TREASURER'||currentRole==='HR')?`<button onclick="approveLoanById('${x._id}',1)">Approve</button> <button onclick="approveLoanById('${x._id}',0)">Reject</button>`:'View Only'}</td></tr>`}).join('')+'</table>';
-}
-function approveLoanById(id,ok){
-if(currentRole!=='TREASURER'&&currentRole!=='HR'){alert('Only Treasurer / HR');return}
-let l=state.loans.find(x=>x._id===id);if(!l)return;l.status=ok?'APPROVED':'REJECTED';save();renderLoans();renderLoans('loanList2');updateMemberBalance();
-}
-function addRepayment(){
-let loanId=(document.getElementById('rpLoanId').value||'').trim();
-let amt=+document.getElementById('rpAmt').value||0;
-let loan=state.loans.find(x=>x._id===loanId&&norm(x.group)===norm(current.name));
-if(!loan){alert('Loan ID not found - Copy ID from Loans table');return}
-if(!amt){alert('Enter repayment amount');return}
-let txId=uid();
-state.repayments.push({_id:uid(),group:current.name,loanId,name:loan.name,amt,date:document.getElementById('rpDate').value||kenyaDate(),txId});
-state.tx.push({_id:txId,group:current.name,type:'IN',forName:loan.name,desc:'Loan Repayment - Loan '+loanId,amt,date:document.getElementById('rpDate').value||kenyaDate()});
-save();renderRepayments();renderLoans('loanList2');renderTx();updateMemberBalance();
-alert('Repayment Saved - Remaining: '+(loan.total-state.repayments.filter(r=>r.loanId===loanId).reduce((a,b)=>a+b.amt,0)));
-}
-function renderRepayments(){
-let el=document.getElementById('repList');if(!el)return;
-let l=state.repayments.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML='<h4>Repayments</h4>'+l.map(x=>`<p class="small">${esc(x.date)} - Loan ${esc(x.loanId)} - ${esc(x.name)} - KES ${x.amt}</p>`).join('')||'No repayments yet';
-}
-function addMoneyIn(){
-if(!['TREASURER','HR','ADMIN'].includes(currentRole)){alert('Treasurer / HR / Admin only');return}
-let amt=+document.getElementById('qInAmt').value||0;if(!amt)return;
-let fn=getForName('qInFor','qInForOther');
-state.tx.push({_id:uid(),group:current.name,type:'IN',forName:fn,desc:'For: '+(fn||'')+' - '+document.getElementById('qInDesc').value,amt,date:kenyaDate()});
-save();renderTx();document.getElementById('qInForOther').value='';
-}
-function addMoneyOut(){
-if(!['TREASURER','HR','ADMIN'].includes(currentRole)){alert('Treasurer / HR / Admin only');return}
-let amt=+document.getElementById('qOutAmt').value||0,vendor=document.getElementById('qOutVendor').value,receipt=document.getElementById('qOutReceipt').value;
-if(!amt||!vendor){alert('Need Vendor + Amount');return}
-let fn=getForName('qOutFor','qOutForOther');
-let f=document.getElementById('qOutFile');
-readFileAsDataURL(f&&f.files.length?f.files[0]:null,(url)=>{
-state.tx.push({_id:uid(),group:current.name,type:'OUT',forName:fn,desc:'For: '+(fn||'')+' - '+document.getElementById('qOutDesc').value+' | Vendor:'+vendor+' | Receipt:'+(receipt||'MISSING')+' | Date:'+document.getElementById('qOutDate').value,amt,date:document.getElementById('qOutDate').value||kenyaDate(),receipt:receipt||'MISSING',receiptPhoto:url||''});
-save();renderTx();if(f)f.value='';document.getElementById('qOutForOther').value='';alert('Money OUT Saved - For: '+(fn||'GROUP'));
-});
-}
-function addExpense(){
-if(!['TREASURER','HR'].includes(currentRole)){alert('Treasurer / HR only');return}
-let amt=+document.getElementById('eAmt').value||0;if(!amt)return;
-let fn=getForName('eFor','eForOther');
-let f=document.getElementById('eFile');
-readFileAsDataURL(f&&f.files.length?f.files[0]:null,(url)=>{
-state.tx.push({_id:uid(),group:current.name,type:'OUT',forName:fn,desc:'For: '+(fn||'')+' - Expenditure: '+document.getElementById('eDesc').value+' | Vendor:'+document.getElementById('eVendor').value+' | Receipt:'+(document.getElementById('eReceipt').value||'MISSING'),amt,date:document.getElementById('eDate').value||kenyaDate(),receipt:document.getElementById('eReceipt').value||'MISSING',receiptPhoto:url||''});
-save();renderTx();alert('Expenditure Saved - For: '+(fn||'GROUP'));
-});
-}
-function renderTx(){
-if(!current)return;
-let l=state.tx.filter(x=>norm(x.group)===norm(current.name));
-let q=(document.getElementById('txSearch')?.value||'').toLowerCase();
-if(q)l=l.filter(x=>(x.desc||'').toLowerCase().includes(q)||(x.forName||'').toLowerCase().includes(q));
-let allIn=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='IN').reduce((a,b)=>a+b.amt,0);
-let allOut=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='OUT').reduce((a,b)=>a+b.amt,0);
-let bal=allIn-allOut;
-document.getElementById('kIn').innerText='KES '+allIn.toLocaleString();
-document.getElementById('kOut').innerText='KES '+allOut.toLocaleString();
-document.getElementById('kBal').innerText='KES '+bal.toLocaleString();
-if(currentRole==='MEMBER'&&window._currentMember&&!isOpen()){
-let my=l.filter(x=>txBelongsTo(x,window._currentMember));
-let myIn=my.filter(x=>x.type==='IN').reduce((a,b)=>a+b.amt,0),myOut=my.filter(x=>x.type==='OUT').reduce((a,b)=>a+b.amt,0);
-document.getElementById('auditStatus').innerHTML='<span class="green">Group Balance: '+bal.toLocaleString()+' | MODE: PRIVATE - You see only yourself</span>';
-document.getElementById('myAuditBox').innerHTML='<b>GROUP TOTAL: IN '+allIn.toLocaleString()+' | OUT '+allOut.toLocaleString()+' | BAL '+bal.toLocaleString()+'</b><br><b>MY RECORDS: MY IN '+myIn.toLocaleString()+' | MY OUT '+myOut.toLocaleString()+' | MY BAL '+(myIn-myOut).toLocaleString()+'</b>';
-document.getElementById('txList').innerHTML=my.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''}</p>`).join('')||'No transactions yet for you';
-return;
-}
-if(currentRole==='MEMBER'&&isOpen()){
-document.getElementById('auditStatus').innerHTML='<span class="green">Group Balance: '+bal.toLocaleString()+' | MODE: OPEN - You see EVERYONE</span>';
-document.getElementById('myAuditBox').innerHTML='<b>GROUP TOTAL: IN '+allIn.toLocaleString()+' | OUT '+allOut.toLocaleString()+' | BAL '+bal.toLocaleString()+'</b>';
-document.getElementById('txList').innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''}</p>`).join('')||'No transactions yet';
-return;
-}
-document.getElementById('auditStatus').innerHTML=bal<0?'<span class="red">ALERT: OUT is greater than IN</span>':'<span class="green">Group Balance: '+bal.toLocaleString()+'</span>';
-document.getElementById('myAuditBox').innerHTML='';
-document.getElementById('txList').innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''} <button onclick="editTxById('${x._id}')">Edit</button> <button onclick="deleteTxById('${x._id}')">Delete</button></p>`).join('')||'No transactions yet';
-}
-function editTxById(id){
-let t=state.tx.find(x=>x._id===id);if(!t)return;
-let a=prompt("Edit Amount:",t.amt);if(a!==null)t.amt=+a||t.amt;
-let d=prompt("Edit Description:",t.desc);if(d!==null)t.desc=d;
-let r=prompt("Receipt action: type DELETE to remove photo, or leave blank to keep:","");
-if(r==="DELETE")t.receiptPhoto='';
-save();renderTx();alert('Transaction Updated - Receipt: '+(t.receiptPhoto?'Kept':'Removed / None'));
-}
-function deleteTxById(id){
-if(!confirm('Delete this transaction? Linked Savings / Repayment / Payroll will also be cleaned.'))return;
-let t=state.tx.find(x=>x._id===id);state.tx=state.tx.filter(x=>x._id!==id);
-if(t){state.savings=state.savings.filter(s=>s.txId!==id);state.repayments=state.repayments.filter(r=>r.txId!==id);state.payrolls=state.payrolls.filter(p=>p.txId!==id);}
-save();renderTx();
-}
-function addPayroll(){
-if(!['HR','ADMIN'].includes(currentRole)&&!(current.type==='NGO'&&currentRole==='TREASURER')){alert('Payroll is done by HR for COMPANY, Treasurer/HR for NGO');return}
-if(current.type==='SACCO / CHAMA'){alert('Payroll is for COMPANY and NGO only');return}
-let name=document.getElementById('pName').value.trim();
-let dept=document.getElementById('pDept')?document.getElementById('pDept').value.trim():'';
-if(!dept){let m=state.members.find(x=>norm(x.group)===norm(current.name)&&norm(x.name)===norm(name));if(m)dept=m.dept||''}
-let gross=+document.getElementById('pGross').value||0,paye=+document.getElementById('pPaye').value||0,nssf=+document.getElementById('pNssf').value||0,shif=+document.getElementById('pShif').value||0,hous=+document.getElementById('pHousing').value||0,loan=+document.getElementById('pLoan').value||0,advance=+document.getElementById('pAdvance').value||0;
-let net=gross-paye-nssf-shif-hous-loan-advance;
-let month=document.getElementById('pMonth')?document.getElementById('pMonth').value:'';
-let date=month?month+'-01':kenyaDate();
-let txId=uid();
-state.payrolls.push({_id:uid(),group:current.name,name,dept,month:month||kenyaDate().slice(0,7),gross,paye,nssf,shif,housing:hous,loan,advance,net,txId,date});
-state.tx.push({_id:txId,group:current.name,type:'OUT',forName:name,desc:'For: '+name+' - Payroll - Dept: '+dept+' - Month: '+(month||'')+' - Net:'+net+' - Advance:'+advance,amt:gross,date});
-save();alert('Net Pay '+net+' - Dept: '+(dept||'-')+' - Advance: '+advance+(net<gross/3?' - Net is less than 1/3 Gross':''));renderTx();renderPayrolls();
-}
-function renderPayrolls(){
-let el=document.getElementById('payrollList');if(!el)return;
-let l=state.payrolls.filter(x=>norm(x.group)===norm(current.name));
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);
-l=l.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-el.innerHTML='<h4>Salary History ('+l.length+' records)</h4>'+l.map(x=>`<p class="small">${esc(x.date)} - Month: ${esc(x.month||'')} - ${esc(x.name)} - Dept: ${esc(x.dept||'-')} - Gross ${x.gross} - PAYE ${x.paye||0} - NSSF ${x.nssf||0} - SHIF ${x.shif||0} - Housing ${x.housing||0} - Loan ${x.loan||0} - Advance ${x.advance||0} - <b>Net ${x.net}</b> <button onclick="deletePayrollById('${x._id}')">Delete</button></p>`).join('')||'No payroll for you';
-}
-function deletePayrollById(id){
-if(!confirm('Delete payroll? Linked transaction will also be deleted.'))return;
-let p=state.payrolls.find(x=>x._id===id);if(p&&p.txId)state.tx=state.tx.filter(x=>x._id!==p.txId);
-state.payrolls=state.payrolls.filter(x=>x._id!==id);save();renderPayrolls();renderTx();
-}
-function addContribution(){
-if(currentRole!=='TREASURER'&&currentRole!=='HR'&&currentRole!=='ADMIN'){alert('Treasurer / HR only');return}
-let amt=+document.getElementById('cAmt').value||0;if(!amt)return;
-let txId=uid();
-state.contributions.push({_id:uid(),group:current.name,name:document.getElementById('cName').value,amt,type:document.getElementById('cType').value,date:document.getElementById('cDate').value||kenyaDate(),txId});
-state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('cName').value,desc:'For: '+document.getElementById('cName').value+' - Contribution - '+document.getElementById('cType').value,amt,date:kenyaDate()});
-save();renderTx();renderContributions();updateMemberBalance();
-}
-function renderContributions(){
-let el=document.getElementById('contList');if(!el)return;
-let l=state.contributions.filter(x=>norm(x.group)===norm(current.name));
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);
-el.innerHTML='<p class="small">Mode: '+(isOpen()?'OPEN - Everyone':'PRIVATE - Only Mine')+'</p>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${esc(x.type)} - ${x.amt} <button onclick="deleteContribById('${x._id}')">Delete</button></p>`).join('');
-}
-function deleteContribById(id){
-if(!confirm('Delete contribution? Linked transaction also deleted.'))return;
-let c=state.contributions.find(x=>x._id===id);if(c&&c.txId)state.tx=state.tx.filter(x=>x._id!==c.txId);
-state.contributions=state.contributions.filter(x=>x._id!==id);save();renderContributions();renderTx();
-}
-function addFine(){
-if(currentRole!=='TREASURER'&&currentRole!=='HR'){alert('Treasurer / HR only');return}
-state.fines.push({_id:uid(),group:current.name,name:document.getElementById('fName').value,amt:+document.getElementById('fAmt').value||0,reason:document.getElementById('fReason').value});save();renderFines();
-}
-function renderFines(){
-let el=document.getElementById('fineList');if(!el)return;
-let l=state.fines.filter(x=>norm(x.group)===norm(current.name));
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);
-el.innerHTML='<p class="small">Mode: '+(isOpen()?'OPEN - Everyone':'PRIVATE - Only Mine')+'</p>'+l.map(x=>`<p class="small">${esc(x.name)} - ${esc(x.reason)} - ${x.amt}</p>`).join('');
-}
+function resetMemberPass(id){let m=state.members.find(x=>x._id===id);if(!m)return;let np=prompt("New password for "+m.name+" (tell them privately, type it - system will NOT make one):");if(np&&np.length>=4){m.pass=np;save();alert('Password reset for '+m.name+' - Tell them new password privately, do NOT post in group');}else if(np){alert('Password must be 4+ chars');}}
+function addSaving(){let amt=+document.getElementById('svAmt').value||0;if(!amt||!document.getElementById('svName').value){alert('Fill Name + Amount');return}let txId=uid();state.savings.push({_id:uid(),group:current.name,name:document.getElementById('svName').value,amt,type:document.getElementById('svType').value,date:kenyaDate(),txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('svName').value,desc:'Savings - '+document.getElementById('svType').value,amt,date:kenyaDate()});save();renderTx();renderSavings();updateMemberBalance();}
+function renderSavings(){let el=document.getElementById('savList');if(!el)return;let l=state.savings.filter(x=>norm(x.group)===norm(current.name));if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);el.innerHTML='<b>Total Savings: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${esc(x.type)} - KES ${x.amt} <button onclick="deleteSavingById('${x._id}')">Delete</button></p>`).join('')||'No savings yet';}
+function deleteSavingById(id){if(!confirm('Delete this saving? Linked transaction will also be deleted.'))return;let s=state.savings.find(x=>x._id===id);if(s&&s.txId)state.tx=state.tx.filter(x=>x._id!==s.txId);state.savings=state.savings.filter(x=>x._id!==id);save();renderSavings();renderTx();}
+function applyLoan(){let amt=+document.getElementById('lnAmt').value||0,rate=+document.getElementById('lnRate').value||0,months=+document.getElementById('lnMonths').value||0;let interest=amt*rate*months/100,total=amt+interest,monthly=months?total/months:0;let l={_id:uid(),group:current.name,name:currentRole==='MEMBER'?window._currentMember:document.getElementById('lnName').value,id:document.getElementById('lnID').value,phone:document.getElementById('lnPhone').value,amt,rate,months,interest,total,monthly,guar:document.getElementById('lnGuar').value,coll:document.getElementById('lnColl').value,status:'PENDING',paid:0};if(!l.name||!amt){alert('Fill Name + Amount');return}state.loans.push(l);save();renderLoans();alert('Loan Saved - ID: '+l._id+' - Keep this ID for Repayment');}
+function renderLoans(id){let el=document.getElementById(id||'loanList');if(!el)return;let l=state.loans.filter(x=>norm(x.group)===norm(current.name));if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);el.innerHTML='<h4>Loans ('+l.length+')</h4><table><tr><th>Loan ID</th><th>Name</th><th>Amt</th><th>Total</th><th>Monthly</th><th>Paid</th><th>Balance</th><th>Status</th><th>Action</th></tr>'+l.map(x=>{let paid=state.repayments.filter(r=>r.loanId===x._id).reduce((a,b)=>a+b.amt,0);return `<tr><td>${esc(x._id)}</td><td>${esc(x.name)}</td><td>${x.amt}</td><td>${x.total}</td><td>${Math.round(x.monthly)}</td><td>${paid}</td><td>${Math.max(0,x.total-paid)}</td><td>${esc(x.status)}</td><td>${(currentRole==='TREASURER'||currentRole==='HR')?`<button onclick="approveLoanById('${x._id}',1)">Approve</button> <button onclick="approveLoanById('${x._id}',0)">Reject</button>`:'View Only'}</td></tr>`}).join('')+'</table>';}
+function approveLoanById(id,ok){if(currentRole!=='TREASURER'&&currentRole!=='HR'){alert('Only Treasurer / HR');return}let l=state.loans.find(x=>x._id===id);if(!l)return;l.status=ok?'APPROVED':'REJECTED';save();renderLoans();renderLoans('loanList2');updateMemberBalance();}
+function addRepayment(){let loanId=(document.getElementById('rpLoanId').value||'').trim();let amt=+document.getElementById('rpAmt').value||0;let loan=state.loans.find(x=>x._id===loanId&&norm(x.group)===norm(current.name));if(!loan){alert('Loan ID not found - Copy ID from Loans table');return}if(!amt){alert('Enter repayment amount');return}let txId=uid();state.repayments.push({_id:uid(),group:current.name,loanId,name:loan.name,amt,date:document.getElementById('rpDate').value||kenyaDate(),txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:loan.name,desc:'Loan Repayment - Loan '+loanId,amt,date:document.getElementById('rpDate').value||kenyaDate()});save();renderRepayments();renderLoans('loanList2');renderTx();updateMemberBalance();alert('Repayment Saved - Remaining: '+(loan.total-state.repayments.filter(r=>r.loanId===loanId).reduce((a,b)=>a+b.amt,0)));}
+function renderRepayments(){let el=document.getElementById('repList');if(!el)return;let l=state.repayments.filter(x=>norm(x.group)===norm(current.name));el.innerHTML='<h4>Repayments</h4>'+l.map(x=>`<p class="small">${esc(x.date)} - Loan ${esc(x.loanId)} - ${esc(x.name)} - KES ${x.amt}</p>`).join('')||'No repayments yet';}
+function addMoneyIn(){if(!['TREASURER','HR','ADMIN'].includes(currentRole)){alert('Treasurer / HR / Admin only');return}let amt=+document.getElementById('qInAmt').value||0;if(!amt)return;let fn=getForName('qInFor','qInForOther');state.tx.push({_id:uid(),group:current.name,type:'IN',forName:fn,desc:'For: '+(fn||'')+' - '+document.getElementById('qInDesc').value,amt,date:kenyaDate()});save();renderTx();document.getElementById('qInForOther').value='';}
+function addMoneyOut(){if(!['TREASURER','HR','ADMIN'].includes(currentRole)){alert('Treasurer / HR / Admin only');return}let amt=+document.getElementById('qOutAmt').value||0,vendor=document.getElementById('qOutVendor').value,receipt=document.getElementById('qOutReceipt').value;if(!amt||!vendor){alert('Need Vendor + Amount');return}let fn=getForName('qOutFor','qOutForOther');let f=document.getElementById('qOutFile');readFileAsDataURL(f&&f.files.length?f.files[0]:null,(url)=>{state.tx.push({_id:uid(),group:current.name,type:'OUT',forName:fn,desc:'For: '+(fn||'')+' - '+document.getElementById('qOutDesc').value+' | Vendor:'+vendor+' | Receipt:'+(receipt||'MISSING')+' | Date:'+document.getElementById('qOutDate').value,amt,date:document.getElementById('qOutDate').value||kenyaDate(),receipt:receipt||'MISSING',receiptPhoto:url||''});save();renderTx();if(f)f.value='';document.getElementById('qOutForOther').value='';alert('Money OUT Saved - For: '+(fn||'GROUP'));});}
+function addExpense(){if(!['TREASURER','HR'].includes(currentRole)){alert('Treasurer / HR only');return}let amt=+document.getElementById('eAmt').value||0;if(!amt)return;let fn=getForName('eFor','eForOther');let f=document.getElementById('eFile');readFileAsDataURL(f&&f.files.length?f.files[0]:null,(url)=>{state.tx.push({_id:uid(),group:current.name,type:'OUT',forName:fn,desc:'For: '+(fn||'')+' - Expenditure: '+document.getElementById('eDesc').value+' | Vendor:'+document.getElementById('eVendor').value+' | Receipt:'+(document.getElementById('eReceipt').value||'MISSING'),amt,date:document.getElementById('eDate').value||kenyaDate(),receipt:document.getElementById('eReceipt').value||'MISSING',receiptPhoto:url||''});save();renderTx();alert('Expenditure Saved - For: '+(fn||'GROUP'));});}
+function renderTx(){if(!current)return;let l=state.tx.filter(x=>norm(x.group)===norm(current.name));let q=(document.getElementById('txSearch')?.value||'').toLowerCase();if(q)l=l.filter(x=>(x.desc||'').toLowerCase().includes(q)||(x.forName||'').toLowerCase().includes(q));let allIn=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='IN').reduce((a,b)=>a+b.amt,0);let allOut=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='OUT').reduce((a,b)=>a+b.amt,0);let bal=allIn-allOut;document.getElementById('kIn').innerText='KES '+allIn.toLocaleString();document.getElementById('kOut').innerText='KES '+allOut.toLocaleString();document.getElementById('kBal').innerText='KES '+bal.toLocaleString();if(currentRole==='MEMBER'&&window._currentMember&&!isOpen()){let my=l.filter(x=>txBelongsTo(x,window._currentMember));let myIn=my.filter(x=>x.type==='IN').reduce((a,b)=>a+b.amt,0),myOut=my.filter(x=>x.type==='OUT').reduce((a,b)=>a+b.amt,0);document.getElementById('auditStatus').innerHTML='<span class="green">Group Balance: '+bal.toLocaleString()+' | MODE: PRIVATE - You see only yourself</span>';document.getElementById('myAuditBox').innerHTML='<b>GROUP TOTAL: IN '+allIn.toLocaleString()+' | OUT '+allOut.toLocaleString()+' | BAL '+bal.toLocaleString()+'</b><br><b>MY RECORDS: MY IN '+myIn.toLocaleString()+' | MY OUT '+myOut.toLocaleString()+' | MY BAL '+(myIn-myOut).toLocaleString()+'</b>';document.getElementById('txList').innerHTML=my.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''}</p>`).join('')||'No transactions yet for you';return;}if(currentRole==='MEMBER'&&isOpen()){document.getElementById('auditStatus').innerHTML='<span class="green">Group Balance: '+bal.toLocaleString()+' | MODE: OPEN - You see EVERYONE</span>';document.getElementById('myAuditBox').innerHTML='<b>GROUP TOTAL: IN '+allIn.toLocaleString()+' | OUT '+allOut.toLocaleString()+' | BAL '+bal.toLocaleString()+'</b>';document.getElementById('txList').innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''}</p>`).join('')||'No transactions yet';return;}document.getElementById('auditStatus').innerHTML=bal<0?'<span class="red">ALERT: OUT is greater than IN</span>':'<span class="green">Group Balance: '+bal.toLocaleString()+'</span>';document.getElementById('myAuditBox').innerHTML='';document.getElementById('txList').innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.type)} - ${x.forName?'For: '+esc(x.forName)+' - ':''}${esc(x.desc)} - KES ${x.amt} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Receipt Photo</a>':''} <button onclick="editTxById('${x._id}')">Edit</button> <button onclick="deleteTxById('${x._id}')">Delete</button></p>`).join('')||'No transactions yet';}
+function editTxById(id){let t=state.tx.find(x=>x._id===id);if(!t)return;let a=prompt("Edit Amount:",t.amt);if(a!==null)t.amt=+a||t.amt;let d=prompt("Edit Description:",t.desc);if(d!==null)t.desc=d;let r=prompt("Receipt action: type DELETE to remove photo, or leave blank to keep:","");if(r==="DELETE")t.receiptPhoto='';save();renderTx();alert('Transaction Updated - Receipt: '+(t.receiptPhoto?'Kept':'Removed / None'));}
+function deleteTxById(id){if(!confirm('Delete this transaction? Linked Savings / Repayment / Payroll will also be cleaned.'))return;let t=state.tx.find(x=>x._id===id);state.tx=state.tx.filter(x=>x._id!==id);if(t){state.savings=state.savings.filter(s=>s.txId!==id);state.repayments=state.repayments.filter(r=>r.txId!==id);state.payrolls=state.payrolls.filter(p=>p.txId!==id);}save();renderTx();}
+function addPayroll(){if(!['HR','ADMIN'].includes(currentRole)&&!(current.type==='NGO'&&currentRole==='TREASURER')){alert('Payroll is done by HR for COMPANY, Treasurer/HR for NGO');return}if(current.type==='SACCO / CHAMA'){alert('Payroll is for COMPANY and NGO only');return}let name=document.getElementById('pName').value.trim();let dept=document.getElementById('pDept')?document.getElementById('pDept').value.trim():'';if(!dept){let m=state.members.find(x=>norm(x.group)===norm(current.name)&&norm(x.name)===norm(name));if(m)dept=m.dept||''}let gross=+document.getElementById('pGross').value||0,paye=+document.getElementById('pPaye').value||0,nssf=+document.getElementById('pNssf').value||0,shif=+document.getElementById('pShif').value||0,hous=+document.getElementById('pHousing').value||0,loan=+document.getElementById('pLoan').value||0,advance=+document.getElementById('pAdvance').value||0;let net=gross-paye-nssf-shif-hous-loan-advance;let month=document.getElementById('pMonth')?document.getElementById('pMonth').value:'';let date=month?month+'-01':kenyaDate();let txId=uid();state.payrolls.push({_id:uid(),group:current.name,name,dept,month:month||kenyaDate().slice(0,7),gross,paye,nssf,shif,housing:hous,loan,advance,net,txId,date});state.tx.push({_id:txId,group:current.name,type:'OUT',forName:name,desc:'For: '+name+' - Payroll - Dept: '+dept+' - Month: '+(month||'')+' - Net:'+net+' - Advance:'+advance,amt:gross,date});save();alert('Net Pay '+net+' - Dept: '+(dept||'-')+' - Advance: '+advance+(net<gross/3?' - Net is less than 1/3 Gross':''));renderTx();renderPayrolls();}
+function renderPayrolls(){let el=document.getElementById('payrollList');if(!el)return;let l=state.payrolls.filter(x=>norm(x.group)===norm(current.name));if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);l=l.sort((a,b)=>(b.date||'').localeCompare(a.date||''));el.innerHTML='<h4>Salary History ('+l.length+' records)</h4>'+l.map(x=>`<p class="small">${esc(x.date)} - Month: ${esc(x.month||'')} - ${esc(x.name)} - Dept: ${esc(x.dept||'-')} - Gross ${x.gross} - PAYE ${x.paye||0} - NSSF ${x.nssf||0} - SHIF ${x.shif||0} - Housing ${x.housing||0} - Loan ${x.loan||0} - Advance ${x.advance||0} - <b>Net ${x.net}</b> <button onclick="deletePayrollById('${x._id}')">Delete</button></p>`).join('')||'No payroll for you';}
+function deletePayrollById(id){if(!confirm('Delete payroll? Linked transaction will also be deleted.'))return;let p=state.payrolls.find(x=>x._id===id);if(p&&p.txId)state.tx=state.tx.filter(x=>x._id!==p.txId);state.payrolls=state.payrolls.filter(x=>x._id!==id);save();renderPayrolls();renderTx();}
+function addContribution(){if(currentRole!=='TREASURER'&&currentRole!=='HR'&&currentRole!=='ADMIN'){alert('Treasurer / HR only');return}let amt=+document.getElementById('cAmt').value||0;if(!amt)return;let txId=uid();state.contributions.push({_id:uid(),group:current.name,name:document.getElementById('cName').value,amt,type:document.getElementById('cType').value,date:document.getElementById('cDate').value||kenyaDate(),txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('cName').value,desc:'For: '+document.getElementById('cName').value+' - Contribution - '+document.getElementById('cType').value,amt,date:kenyaDate()});save();renderTx();renderContributions();updateMemberBalance();}
+function renderContributions(){let el=document.getElementById('contList');if(!el)return;let l=state.contributions.filter(x=>norm(x.group)===norm(current.name));if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);el.innerHTML='<p class="small">Mode: '+(isOpen()?'OPEN - Everyone':'PRIVATE - Only Mine')+'</p>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${esc(x.type)} - ${x.amt} <button onclick="deleteContribById('${x._id}')">Delete</button></p>`).join('');}
+function deleteContribById(id){if(!confirm('Delete contribution? Linked transaction also deleted.'))return;let c=state.contributions.find(x=>x._id===id);if(c&&c.txId)state.tx=state.tx.filter(x=>x._id!==c.txId);state.contributions=state.contributions.filter(x=>x._id!==id);save();renderContributions();renderTx();}
+function addFine(){if(currentRole!=='TREASURER'&&currentRole!=='HR'){alert('Treasurer / HR only');return}state.fines.push({_id:uid(),group:current.name,name:document.getElementById('fName').value,amt:+document.getElementById('fAmt').value||0,reason:document.getElementById('fReason').value});save();renderFines();}
+function renderFines(){let el=document.getElementById('fineList');if(!el)return;let l=state.fines.filter(x=>norm(x.group)===norm(current.name));if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>x.name===window._currentMember);el.innerHTML='<p class="small">Mode: '+(isOpen()?'OPEN - Everyone':'PRIVATE - Only Mine')+'</p>'+l.map(x=>`<p class="small">${esc(x.name)} - ${esc(x.reason)} - ${x.amt}</p>`).join('');}
 function addMeeting(){state.meetings.push({_id:uid(),group:current.name,title:document.getElementById('mtTitle').value,date:document.getElementById('mtDate').value,minutes:document.getElementById('mtMinutes').value,attend:document.getElementById('mtAttend').value});save();renderMeetings();}
-function renderMeetings(){
-let el=document.getElementById('meetList');if(!el)return;
-let l=state.meetings.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.title)} - Att: ${esc(x.attend)} - ${esc(x.minutes)}</p>`).join('');
-}
-function addDonor(){
-let amt=+document.getElementById('dAmt').value||0;let txId=uid();
-state.donors.push({_id:uid(),group:current.name,name:document.getElementById('dName').value,phone:document.getElementById('dPhone').value,amt,date:document.getElementById('dDate').value,txId});
-state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('dName').value,desc:'Donor - '+document.getElementById('dName').value,amt,date:kenyaDate()});save();renderTx();renderDonors();
-}
-function renderDonors(){
-let el=document.getElementById('donorList');if(!el)return;
-let l=state.donors.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${x.amt}</p>`).join('');
-}
-function addGrant(){
-let r=+document.getElementById('grRecv').value||0,s=+document.getElementById('grSpent').value||0;
-state.grants.push({_id:uid(),group:current.name,name:document.getElementById('grName').value,recv:r,spent:s,bal:r-s,util:r?(s/r*100).toFixed(1):0});save();renderGrants();
-}
-function renderGrants(){
-let el=document.getElementById('grantList');if(!el)return;
-let l=state.grants.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.name)} - Received ${x.recv} - Spent ${x.spent} - Balance ${x.bal} - Util ${x.util} Percent</p>`).join('');
-}
+function renderMeetings(){let el=document.getElementById('meetList');if(!el)return;let l=state.meetings.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.title)} - Att: ${esc(x.attend)} - ${esc(x.minutes)}</p>`).join('');}
+function addDonor(){let amt=+document.getElementById('dAmt').value||0;let txId=uid();state.donors.push({_id:uid(),group:current.name,name:document.getElementById('dName').value,phone:document.getElementById('dPhone').value,amt,date:document.getElementById('dDate').value,txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('dName').value,desc:'Donor - '+document.getElementById('dName').value,amt,date:kenyaDate()});save();renderTx();renderDonors();}
+function renderDonors(){let el=document.getElementById('donorList');if(!el)return;let l=state.donors.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.name)} - ${x.amt}</p>`).join('');}
 function addProject(){state.projects.push({_id:uid(),group:current.name,name:document.getElementById('prName').value,budget:+document.getElementById('prBudget').value||0,benef:+document.getElementById('prBenef').value||0,status:document.getElementById('prStatus').value});save();renderProjects();}
-function renderProjects(){
-let el=document.getElementById('projList');if(!el)return;
-let l=state.projects.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.name)} - Budget ${x.budget} - Benef ${x.benef} - ${esc(x.status)}</p>`).join('');
-}
+function renderProjects(){let el=document.getElementById('projList');if(!el)return;let l=state.projects.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.name)} - Budget ${x.budget} - Benef ${x.benef} - ${esc(x.status)}</p>`).join('');}
 function addProcurement(){state.procurement.push({_id:uid(),group:current.name,item:document.getElementById('pcItem').value,vendor:document.getElementById('pcVendor').value,amt:+document.getElementById('pcAmt').value||0,quote:document.getElementById('pcQuote').value});save();renderProcurement();}
-function renderProcurement(){
-let el=document.getElementById('procList');if(!el)return;
-let l=state.procurement.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.item)} - ${esc(x.vendor)} - ${x.amt} - Quote ${esc(x.quote)}</p>`).join('');
-}
+function renderProcurement(){let el=document.getElementById('procList');if(!el)return;let l=state.procurement.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.item)} - ${esc(x.vendor)} - ${x.amt} - Quote ${esc(x.quote)}</p>`).join('');}
 function addAsset(){state.assets.push({_id:uid(),group:current.name,name:document.getElementById('aName').value,val:+document.getElementById('aVal').value||0,date:document.getElementById('aDate').value});save();renderAssets();}
-function renderAssets(){
-let el=document.getElementById('assetList');if(!el)return;
-let l=state.assets.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.name)} - ${x.val} - ${esc(x.date)}</p>`).join('');
-}
-function addMerry(){
-let amt=+document.getElementById('mgAmt').value||0;let txId=uid();
-state.merry.push({_id:uid(),group:current.name,name:document.getElementById('mgName').value,amt,order:+document.getElementById('mgOrder').value||0,date:document.getElementById('mgDate').value||kenyaDate(),txId});
-state.tx.push({_id:txId,group:current.name,type:'OUT',forName:document.getElementById('mgName').value,desc:'Merry-Go-Round: '+document.getElementById('mgName').value,amt,date:kenyaDate()});save();renderTx();renderMerry();alert('Merry-Go-Round Saved');
-}
-function renderMerry(){
-let el=document.getElementById('mgList');if(!el)return;
-let l=state.merry.filter(x=>norm(x.group)===norm(current.name)).sort((a,b)=>a.order-b.order);
-el.innerHTML='<b>Total Merry-Go-Round: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">Order ${x.order} - ${esc(x.name)} - KES ${x.amt} - ${esc(x.date)}</p>`).join('')||'No records';
-}
-function addSale(){
-let amt=+document.getElementById('sAmt').value||0;let txId=uid();
-state.sales.push({_id:uid(),group:current.name,item:document.getElementById('sItem').value,amt,cust:document.getElementById('sCust').value,date:document.getElementById('sDate').value||kenyaDate(),txId});
-state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('sCust').value,desc:'Sales: '+document.getElementById('sItem').value+' - Customer '+document.getElementById('sCust').value,amt,date:kenyaDate()});save();renderTx();renderSales();alert('Sale Saved');
-}
-function renderSales(){
-let el=document.getElementById('saleList');if(!el)return;
-let l=state.sales.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML='<b>Total Sales: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.item)} - ${esc(x.cust)} - KES ${x.amt}</p>`).join('')||'No sales yet';
-}
+function renderAssets(){let el=document.getElementById('assetList');if(!el)return;let l=state.assets.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.name)} - ${x.val} - ${esc(x.date)}</p>`).join('');}
+function addMerry(){let amt=+document.getElementById('mgAmt').value||0;let txId=uid();state.merry.push({_id:uid(),group:current.name,name:document.getElementById('mgName').value,amt,order:+document.getElementById('mgOrder').value||0,date:document.getElementById('mgDate').value||kenyaDate(),txId});state.tx.push({_id:txId,group:current.name,type:'OUT',forName:document.getElementById('mgName').value,desc:'Merry-Go-Round: '+document.getElementById('mgName').value,amt,date:kenyaDate()});save();renderTx();renderMerry();alert('Merry-Go-Round Saved');}
+function renderMerry(){let el=document.getElementById('mgList');if(!el)return;let l=state.merry.filter(x=>norm(x.group)===norm(current.name)).sort((a,b)=>a.order-b.order);el.innerHTML='<b>Total Merry-Go-Round: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">Order ${x.order} - ${esc(x.name)} - KES ${x.amt} - ${esc(x.date)}</p>`).join('')||'No records';}
+function addSale(){let amt=+document.getElementById('sAmt').value||0;let txId=uid();state.sales.push({_id:uid(),group:current.name,item:document.getElementById('sItem').value,amt,cust:document.getElementById('sCust').value,date:document.getElementById('sDate').value||kenyaDate(),txId});state.tx.push({_id:txId,group:current.name,type:'IN',forName:document.getElementById('sCust').value,desc:'Sales: '+document.getElementById('sItem').value+' - Customer '+document.getElementById('sCust').value,amt,date:kenyaDate()});save();renderTx();renderSales();alert('Sale Saved');}
+function renderSales(){let el=document.getElementById('saleList');if(!el)return;let l=state.sales.filter(x=>norm(x.group)===norm(current.name));el.innerHTML='<b>Total Sales: KES '+l.reduce((a,b)=>a+b.amt,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.item)} - ${esc(x.cust)} - KES ${x.amt}</p>`).join('')||'No sales yet';}
 function addDept(){state.departments.push({_id:uid(),group:current.name,name:document.getElementById('depName').value,head:document.getElementById('depHead').value,count:+document.getElementById('depCount').value||0});save();renderDepts();alert('Department Saved - Now assign Staff to this Department in Staff list');}
-function renderDepts(){
-let el=document.getElementById('deptList');if(!el)return;
-let l=state.departments.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML=l.map(x=>{let staff=state.members.filter(m=>norm(m.group)===norm(current.name)&&norm(m.dept||'')===norm(x.name));return `<p class="small"><b>${esc(x.name)}</b> - Head: ${esc(x.head)} - Staff in Dept: ${staff.length} - ${staff.map(s=>esc(s.name)).join(', ')||'No staff assigned yet'}</p>`}).join('')||'No departments yet';
-}
+function renderDepts(){let el=document.getElementById('deptList');if(!el)return;let l=state.departments.filter(x=>norm(x.group)===norm(current.name));el.innerHTML=l.map(x=>{let staff=state.members.filter(m=>norm(m.group)===norm(current.name)&&norm(m.dept||'')===norm(x.name));return `<p class="small"><b>${esc(x.name)}</b> - Head: ${esc(x.head)} - Staff in Dept: ${staff.length} - ${staff.map(s=>esc(s.name)).join(', ')||'No staff assigned yet'}</p>`}).join('')||'No departments yet';}
 function addGeneric(name){state.tx.push({_id:uid(),group:current.name,type:'IN',desc:name+': '+document.getElementById('genTitle').value,amt:+document.getElementById('genAmt').value||0,date:kenyaDate()});save();renderTx();alert(name+' Saved');}
-function renderGeneric(name){
-let el=document.getElementById('genList');if(!el)return;
-let l=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.desc.startsWith(name));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.desc)} - ${x.amt}</p>`).join('');
-}
-function renderReceipts(){
-let el=document.getElementById('receiptList');if(!el)return;
-let l=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='OUT');
-if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>txBelongsTo(x,window._currentMember));
-el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.desc)} - KES ${x.amt} - Receipt: ${esc(x.receipt||'MISSING')} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Photo</a>':' - NO PHOTO'}</p>`).join('')||'No expenses yet';
-}
-function calcDividends(){
-let total=+document.getElementById('dvTotal').value||0;if(!total){alert('Enter Total Profit');return}
-let members=state.members.filter(x=>norm(x.group)===norm(current.name));
-let totSav=members.reduce((a,m)=>a+state.savings.filter(s=>norm(s.group)===norm(current.name)&&s.name===m.name).reduce((a2,b)=>a2+b.amt,0),0);
-if(!totSav){alert('No savings yet - cannot share');return}
-state.dividends=[];
-members.forEach(m=>{
-let s=state.savings.filter(x=>norm(x.group)===norm(current.name)&&x.name===m.name).reduce((a,b)=>a+b.amt,0);
-let share=Math.round(total*s/totSav);
-state.dividends.push({_id:uid(),group:current.name,name:m.name,savings:s,share,date:kenyaDate()});
-});
-save();renderDividends();alert('Dividends Calculated Direct - Total '+total);
-}
-function renderDividends(){
-let el=document.getElementById('dvList');if(!el)return;
-let l=state.dividends.filter(x=>norm(x.group)===norm(current.name));
-el.innerHTML='<b>Total Dividends Shared: KES '+l.reduce((a,b)=>a+b.share,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.name)} - Savings ${x.savings} - <b>Dividend KES ${x.share}</b> - ${esc(x.date)}</p>`).join('')||'No dividends yet - Enter profit above';
-}
-function renderOwner(){
-let q=(document.getElementById('ownerSearch')?.value||'').toLowerCase();
-let groups=state.groups.filter(g=>!q||g.name.toLowerCase().includes(q)||(g.admin||'').toLowerCase().includes(q)||(g.login||'').toLowerCase().includes(q));
-let el=document.getElementById('allGroups');
-if(el)el.innerHTML=groups.map(g=>{let days=Math.floor((Date.now()-g.created)/86400000)+1;return `<div style="border:1px solid #ddd;padding:10px;border-radius:10px;margin:6px 0"><b>${esc(g.name)}</b> - ${esc(g.type)} - Day ${days}/7 - ${g.paid?'PAID':'NOT PAID'} - Admin: ${esc(g.admin)}<br><span class="small">Members: ${state.members.filter(m=>norm(m.group)===norm(g.name)).length}</span></div>`}).join('')||'No groups';
-let allIn=state.tx.filter(x=>x.type==='IN').reduce((a,b)=>a+b.amt,0),allOut=state.tx.filter(x=>x.type==='OUT').reduce((a,b)=>a+b.amt,0);
-let oi=document.getElementById('oIn');if(oi)oi.innerText='KES '+allIn.toLocaleString();
-let oo=document.getElementById('oOut');if(oo)oo.innerText='KES '+allOut.toLocaleString();
-let ob=document.getElementById('oBal');if(ob)ob.innerText='KES '+(allIn-allOut).toLocaleString();
-let pp=document.getElementById('payPrice');if(pp)pp.innerText=localStorage.getItem('ownerPrice')||1500;
-}
-function saveOwnerSettings(){
-let pk=document.getElementById('oPaystack').value;
-let price=document.getElementById('oPrice').value;
-let em=document.getElementById('oEmail')?document.getElementById('oEmail').value:'';
-let wa=document.getElementById('oWhats')?document.getElementById('oWhats').value:'';
-if(pk)localStorage.setItem('ownerPaystack',pk);
-if(price)localStorage.setItem('ownerPrice',price);
-if(em)localStorage.setItem('ownerEmail',em);
-if(wa)localStorage.setItem('ownerWhats',wa);
-if(db){db.ref('loyalvault_v1/ownerPrice').set(+price);}
-applyOwnerContact();alert('Owner Settings Saved - Price: KES '+price+' Email: '+em+' WhatsApp: '+wa);
-}
+function renderGeneric(name){let el=document.getElementById('genList');if(!el)return;let l=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.desc.startsWith(name));el.innerHTML=l.map(x=>`<p class="small">${esc(x.desc)} - ${x.amt}</p>`).join('');}
+function renderReceipts(){let el=document.getElementById('receiptList');if(!el)return;let l=state.tx.filter(x=>norm(x.group)===norm(current.name)&&x.type==='OUT');if(currentRole==='MEMBER'&&!isOpen())l=l.filter(x=>txBelongsTo(x,window._currentMember));el.innerHTML=l.map(x=>`<p class="small">${esc(x.date)} - ${esc(x.desc)} - KES ${x.amt} - Receipt: ${esc(x.receipt||'MISSING')} ${x.receiptPhoto?' - <a href="'+x.receiptPhoto+'" target="_blank">View Photo</a>':' - NO PHOTO'}</p>`).join('')||'No expenses yet';}
+function calcDividends(){let total=+document.getElementById('dvTotal').value||0;if(!total){alert('Enter Total Profit');return}let members=state.members.filter(x=>norm(x.group)===norm(current.name));let totSav=members.reduce((a,m)=>a+state.savings.filter(s=>norm(s.group)===norm(current.name)&&s.name===m.name).reduce((a2,b)=>a2+b.amt,0),0);if(!totSav){alert('No savings yet - cannot share');return}state.dividends=[];members.forEach(m=>{let s=state.savings.filter(x=>norm(x.group)===norm(current.name)&&x.name===m.name).reduce((a,b)=>a+b.amt,0);let share=Math.round(total*s/totSav);state.dividends.push({_id:uid(),group:current.name,name:m.name,savings:s,share,date:kenyaDate()});});save();renderDividends();alert('Dividends Calculated Direct - Total '+total);}
+function renderDividends(){let el=document.getElementById('dvList');if(!el)return;let l=state.dividends.filter(x=>norm(x.group)===norm(current.name));el.innerHTML='<b>Total Dividends Shared: KES '+l.reduce((a,b)=>a+b.share,0).toLocaleString()+'</b><br>'+l.map(x=>`<p class="small">${esc(x.name)} - Savings ${x.savings} - <b>Dividend KES ${x.share}</b> - ${esc(x.date)}</p>`).join('')||'No dividends yet - Enter profit above';}
+function renderOwner(){let q=(document.getElementById('ownerSearch')?.value||'').toLowerCase();let groups=state.groups.filter(g=>!q||g.name.toLowerCase().includes(q)||(g.admin||'').toLowerCase().includes(q)||(g.login||'').toLowerCase().includes(q));let el=document.getElementById('allGroups');if(el)el.innerHTML=groups.map(g=>{let days=Math.floor((Date.now()-g.created)/86400000)+1;return `<div style="border:1px solid #ddd;padding:10px;border-radius:10px;margin:6px 0"><b>${esc(g.name)}</b> - ${esc(g.type)} - Day ${days}/7 - ${g.paid?'PAID':'NOT PAID'} - Admin: ${esc(g.admin)}<br><span class="small">Members: ${state.members.filter(m=>norm(m.group)===norm(g.name)).length}</span></div>`}).join('')||'No groups';let allIn=state.tx.filter(x=>x.type==='IN').reduce((a,b)=>a+b.amt,0),allOut=state.tx.filter(x=>x.type==='OUT').reduce((a,b)=>a+b.amt,0);let oi=document.getElementById('oIn');if(oi)oi.innerText='KES '+allIn.toLocaleString();let oo=document.getElementById('oOut');if(oo)oo.innerText='KES '+allOut.toLocaleString();let ob=document.getElementById('oBal');if(ob)ob.innerText='KES '+(allIn-allOut).toLocaleString();let pp=document.getElementById('payPrice');if(pp)pp.innerText=localStorage.getItem('ownerPrice')||1500;}
+function saveOwnerSettings(){let pk=document.getElementById('oPaystack').value;let price=document.getElementById('oPrice').value;let em=document.getElementById('oEmail')?document.getElementById('oEmail').value:'';let wa=document.getElementById('oWhats')?document.getElementById('oWhats').value:'';if(pk)localStorage.setItem('ownerPaystack',pk);if(price)localStorage.setItem('ownerPrice',price);if(em)localStorage.setItem('ownerEmail',em);if(wa)localStorage.setItem('ownerWhats',wa);if(db){db.ref('loyalvault_v1/ownerPrice').set(+price);}applyOwnerContact();alert('Owner Settings Saved - Price: KES '+price+' Email: '+em+' WhatsApp: '+wa);}
 function sendNotif(){let t=document.getElementById('oNotif').value;localStorage.setItem('ownerNotif',t);alert('Notification Sent To All Groups');}
-function unlockGroup(){
-let n=document.getElementById('oUnlockGroup').value.trim();
-let g=state.groups.find(x=>norm(x.name)===norm(n));
-if(!g){alert('Group not found');return}g.paid=true;save();renderOwner();alert('Unlocked: '+g.name);
-}
-function lockGroup(){
-let n=document.getElementById('oLockGroup').value.trim();
-let g=state.groups.find(x=>norm(x.name)===norm(n));
-if(!g){alert('Group not found');return}g.paid=false;save();renderOwner();alert('Locked: '+g.name);
-}
-function deleteGroup(){
-let n=document.getElementById('oDelGroup').value.trim();
-if(!n){alert('Type group name exactly');return}
-if(!confirm('Delete group '+n+' and ALL its data?'))return;
-let g=state.groups.find(x=>norm(x.name)===norm(n));
-if(!g){alert('Group not found');return}
-state.groups=state.groups.filter(x=>norm(x.name)!==norm(n));
-['tx','members','loans','repayments','fines','meetings','contributions','donors','grants','projects','assets','procurement','payrolls','sales','departments','merry','savings','dividends'].forEach(k=>{state[k]=state[k].filter(x=>norm(x.group)!==norm(n))});
-save();renderOwner();alert('Group Deleted: '+n);
-}
-function downloadCSV(){
-if(!current)return;
-let rows=[['Date','Type','For','Description','Amount']];
-state.tx.filter(x=>norm(x.group)===norm(current.name)).forEach(x=>rows.push([x.date,x.type,x.forName||'',(x.desc||'').replace(/,/g,' '),x.amt]));
-let csv=rows.map(r=>r.join(',')).join('\n');
-let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='loyalvault-'+current.name+'-'+kenyaDate()+'.csv';a.click();
-}
-function downloadMemberStatement(){
-if(!current)return;
-let me=window._currentMember||'ALL';
-let rows=state.tx.filter(x=>norm(x.group)===norm(current.name)&&(currentRole!=='MEMBER'||isOpen()||txBelongsTo(x,me)));
-let txt='LOYAL VAULT STATEMENT\nGroup: '+current.name+'\nMember: '+me+'\nDate: '+kenyaDate()+'\n\n'+rows.map(x=>x.date+' - '+x.type+' - '+(x.forName||'')+' - '+x.desc+' - KES '+x.amt).join('\n');
-let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='statement-'+current.name+'-'+kenyaDate()+'.txt';a.click();
-}
+function unlockGroup(){let n=document.getElementById('oUnlockGroup').value.trim();let g=state.groups.find(x=>norm(x.name)===norm(n));if(!g){alert('Group not found');return}g.paid=true;save();renderOwner();alert('Unlocked: '+g.name);}
+function lockGroup(){let n=document.getElementById('oLockGroup').value.trim();let g=state.groups.find(x=>norm(x.name)===norm(n));if(!g){alert('Group not found');return}g.paid=false;save();renderOwner();alert('Locked: '+g.name);}
+function deleteGroup(){let n=document.getElementById('oDelGroup').value.trim();if(!n){alert('Type group name exactly');return}if(!confirm('Delete group '+n+' and ALL its data?'))return;let g=state.groups.find(x=>norm(x.name)===norm(n));if(!g){alert('Group not found');return}state.groups=state.groups.filter(x=>norm(x.name)!==norm(n));['tx','members','loans','repayments','fines','meetings','contributions','donors','grants','projects','assets','procurement','payrolls','sales','departments','merry','savings','dividends'].forEach(k=>{state[k]=state[k].filter(x=>norm(x.group)!==norm(n))});save();renderOwner();alert('Group Deleted: '+n);}
+function downloadCSV(){if(!current)return;let rows=[['Date','Type','For','Description','Amount']];state.tx.filter(x=>norm(x.group)===norm(current.name)).forEach(x=>rows.push([x.date,x.type,x.forName||'',(x.desc||'').replace(/,/g,' '),x.amt]));let csv=rows.map(r=>r.join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='loyalvault-'+current.name+'-'+kenyaDate()+'.csv';a.click();}
+function downloadMemberStatement(){if(!current)return;let me=window._currentMember||'ALL';let rows=state.tx.filter(x=>norm(x.group)===norm(current.name)&&(currentRole!=='MEMBER'||isOpen()||txBelongsTo(x,me)));let txt='LOYAL VAULT STATEMENT\nGroup: '+current.name+'\nMember: '+me+'\nDate: '+kenyaDate()+'\n\n'+rows.map(x=>x.date+' - '+x.type+' - '+(x.forName||'')+' - '+x.desc+' - KES '+x.amt).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='statement-'+current.name+'-'+kenyaDate()+'.txt';a.click();}
 checkOffline();
 applyOwnerContact();
 let io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('show');io.unobserve(e.target)}})},{threshold:0.1});
