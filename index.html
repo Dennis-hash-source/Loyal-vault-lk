@@ -171,7 +171,7 @@ th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
 <p class="small">PRIVATE = Member sees Group Total + ONLY MY OWN. OPEN = Member sees EVERYONE.</p>
 <h3 id="adminTitle">Admin - Chair</h3>
 <input id="gAdmin" placeholder="Admin Full Name - Chair" autocomplete="off">
-<input id="gLogin" placeholder="Admin Login - Email" autocomplete="off">
+<input id="gLogin" placeholder="Admin Login - Phone / Email" autocomplete="off">
 <div class="passwrap"><input id="gPass" type="password" placeholder="Admin Password" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('gPass',this)">👁️</button></div>
 <div id="secondRoleBox">
 <h3 id="secondTitle">Treasurer</h3>
@@ -179,13 +179,7 @@ th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
 <input id="gTLogin" placeholder="Treasurer Login - Email / Phone" autocomplete="off">
 <div class="passwrap"><input id="gTPass" type="password" placeholder="Treasurer Password" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('gTPass',this)">👁️</button></div>
 </div>
-<div id="otpBox" class="hidden">
-<input id="gOtp" placeholder="Enter 6-digit OTP from Admin Email" autocomplete="off">
-<button class="btn btn2" onclick="verifyCreateOTP()">Verify OTP &amp; Create Group</button>
-<button class="btn btn3" onclick="resendCreateOTP()">Resend OTP</button>
-</div>
-<p class="small" id="otpMsg"></p>
-<button class="btn" id="createBtn" onclick="sendCreateOTP()">Send OTP &amp; Create Group</button>
+<button class="btn" id="createBtn" onclick="createGroup()">Create Group</button>
 <button class="btn btn3" onclick="go('home')">Back To Home</button>
 </div>
 </div>
@@ -251,10 +245,6 @@ th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
 <input id="dmName" placeholder="Full Name" autocomplete="off">
 <input id="dmID" placeholder="National ID" autocomplete="off">
 <input id="dmPhone" placeholder="Phone - This is their Login" autocomplete="off">
-<input id="dmKra" placeholder="KRA PIN" autocomplete="off">
-<input id="dmKin" placeholder="Next of Kin Name" autocomplete="off">
-<input id="dmDept" placeholder="Department - e.g. Finance" autocomplete="off">
-<input id="dmRole2" placeholder="Role / Job Title" autocomplete="off">
 <div class="passwrap"><input id="dmPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('dmPass',this)">👁️</button></div>
 <button class="btn" onclick="addMemberFromDash()">Add Member / Staff</button>
 </div>
@@ -420,34 +410,6 @@ document.getElementById('ownerOtpBox').classList.add('hidden');
 document.getElementById('ownerPanelBody').classList.remove('hidden');
 renderOwner();
 }
-function sendCreateOTP(){
-let email=(document.getElementById('gLogin').value||'').trim();
-if(!document.getElementById('gName').value.trim()||!document.getElementById('gGroupPass').value||!document.getElementById('gPass').value||!document.getElementById('gTPass').value){alert('Fill Group Name + Group Password + Admin Password + Treasurer / HR Password');return}
-if(!email||!email.includes('@')){alert('Enter valid Admin Email for OTP');return}
-let otp=Math.floor(100000+Math.random()*900000).toString();
-localStorage.setItem('lv_otp',otp);
-localStorage.setItem('lv_otp_exp',Date.now()+10*60*1000);
-document.getElementById('createBtn').disabled=true;
-document.getElementById('createBtn').innerText='Sending OTP...';
-emailjs.send("service_d1sj9gc","template_x88ovyf",{to_name:document.getElementById('gAdmin').value||'Admin',to_email:email,passcode:otp,time:"10 minutes"}).then(()=>{document.getElementById('otpBox').classList.remove('hidden');document.getElementById('otpMsg').innerText='OTP sent to '+email+' - Check inbox / spam. Valid 10 min.';document.getElementById('createBtn').disabled=false;document.getElementById('createBtn').innerText='Send OTP & Create Group';}).catch(()=>{alert('Failed to send OTP. Check internet.');document.getElementById('createBtn').disabled=false;document.getElementById('createBtn').innerText='Send OTP & Create Group';});
-}
-function resendCreateOTP(){
-let email=document.getElementById('gLogin').value.trim();
-let otp=Math.floor(100000+Math.random()*900000).toString();
-localStorage.setItem('lv_otp',otp);
-localStorage.setItem('lv_otp_exp',Date.now()+10*60*1000);
-emailjs.send("service_d1sj9gc","template_x88ovyf",{to_name:document.getElementById('gAdmin').value||'Admin',to_email:email,passcode:otp,time:"10 minutes"}).then(()=>{document.getElementById('otpMsg').innerText='New OTP sent!';});
-}
-function verifyCreateOTP(){
-let e=document.getElementById('gOtp').value.trim();
-let saved=localStorage.getItem('lv_otp');
-let exp=+localStorage.getItem('lv_otp_exp');
-if(!e||e.length!==6){alert('Enter 6-digit OTP');return}
-if(Date.now()>exp){alert('OTP expired. Resend.');return}
-if(e!==saved){alert('Wrong OTP.');return}
-localStorage.removeItem('lv_otp');
-createGroup();
-}
 let state=JSON.parse(localStorage.getItem('loyalvault_v1')||'{"groups":[],"tx":[],"members":[],"loans":[],"repayments":[],"fines":[],"meetings":[],"contributions":[],"donors":[],"grants":[],"projects":[],"assets":[],"procurement":[],"payrolls":[],"sales":[],"departments":[],"merry":[],"savings":[],"dividends":[]}');
 ['dividends','sales','departments','merry','groups','tx','members','loans','repayments','fines','meetings','contributions','donors','grants','projects','assets','procurement','payrolls','savings'].forEach(k=>{if(!state[k])state[k]=[]});
 let current=null,currentRole='MEMBER';
@@ -555,13 +517,14 @@ function doLoginStep2(){
 let g=pendingLoginGroup;
 if(!g){alert('Start from Step 1');return}
 let user=document.getElementById('lUser').value.trim(),pass=document.getElementById('lPass').value,role=document.getElementById('lRole').value;
+if(!user||!pass){document.getElementById('loginMsg').innerText='Enter your Phone + Password. Both are required.';return}
 let cm='';
 if(role==='ADMIN'&&(g.login!==user||g.pass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
 if(role==='TREASURER'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
 if(role==='HR'&&(g.tlogin!==user||g.tpass!==pass)){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
 if(role==='MEMBER'){
-let mem=state.members.find(x=>norm(x.group)===norm(g.name)&&((x.phone||'').trim()===user||norm(x.name)===norm(user)));
-if(!mem){document.getElementById('loginMsg').innerText='Member not found. Ask Treasurer / HR to add you first.';return}
+let mem=state.members.find(x=>norm(x.group)===norm(g.name)&&(x.phone||'').trim()===user);
+if(!mem){document.getElementById('loginMsg').innerText='Member not found with this Phone. Ask Treasurer / HR to add you first. Use Phone, not Name.';return}
 if(!mem.pass||mem.pass!==pass){document.getElementById('loginMsg').innerText='Incorrect login details.';return}
 cm=mem.name;
 }
@@ -637,7 +600,11 @@ if(name==='Savings'){b.innerHTML=`<input id="svName" placeholder="Member Name" a
 if(name==='Members'||name==='Staff'||name==='Beneficiaries'){
 if(currentRole==='MEMBER'){b.innerHTML='<div id="myFullAudit"></div>';showMyFullAudit();return}
 document.getElementById('dashAddMemberCard').style.display='block';
-b.innerHTML=`<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><input id="mKra" placeholder="KRA PIN" autocomplete="off"></div><div class="row"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"></div><div class="row"><input id="mKin" placeholder="Next of Kin Name" autocomplete="off"><input id="mKinPhone" placeholder="Next of Kin Phone" autocomplete="off"></div><div class="row"><input id="mDept" placeholder="Department - e.g. Finance" autocomplete="off"><input id="mRole2" placeholder="Role / Job Title" autocomplete="off"></div><button class="btn" onclick="addMember()">Add Member - Treasurer / HR Only</button><div id="memberList"></div>`;renderMembers();
+let isChama=current.type==='SACCO / CHAMA';
+let memberForm=isChama
+? `<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"><button class="btn" onclick="addMember()">Add Member - Treasurer Only</button><div id="memberList"></div>`
+: `<input id="memberSearch" placeholder="Search members..." oninput="renderMembers()" autocomplete="off"><div class="row"><input id="mName" placeholder="Full Name" autocomplete="off"><input id="mID" placeholder="National ID" autocomplete="off"></div><div class="row"><input id="mPhone" placeholder="Phone - This is their Login" autocomplete="off"><input id="mKra" placeholder="KRA PIN" autocomplete="off"></div><div class="row"><div class="passwrap"><input id="mPass" type="password" placeholder="Create Member Password - MUST fill" autocomplete="new-password"><button type="button" class="eye" onclick="toggleEye('mPass',this)">👁️</button></div><input id="mGroupPass" placeholder="Group Password" autocomplete="off"></div><div class="row"><input id="mKin" placeholder="Next of Kin Name" autocomplete="off"><input id="mKinPhone" placeholder="Next of Kin Phone" autocomplete="off"></div><div class="row"><input id="mDept" placeholder="Department - e.g. Finance" autocomplete="off"><input id="mRole2" placeholder="Role / Job Title" autocomplete="off"></div><button class="btn" onclick="addMember()">Add Member - Treasurer / HR Only</button><div id="memberList"></div>`;
+b.innerHTML=memberForm;renderMembers();
 }
 else if(name==='Loan Application'){
 if(current.type!=='SACCO / CHAMA'){b.innerHTML='<p class="small">Loan Application is only for SACCO / CHAMA.</p>';return}
@@ -696,7 +663,7 @@ r.readAsText(f);
 function canAddMember(){return ['TREASURER','HR','ADMIN'].includes(currentRole)}
 function addMemberFromDash(){
 if(!canAddMember()){alert('Only TREASURER / HR / ADMIN');return}
-let m={_id:uid(),group:current.name,name:document.getElementById('dmName').value.trim(),id:document.getElementById('dmID').value.trim(),phone:(document.getElementById('dmPhone').value||'').trim(),kra:document.getElementById('dmKra').value.trim(),kin:document.getElementById('dmKin').value.trim(),kinPhone:'',dept:document.getElementById('dmDept')?document.getElementById('dmDept').value.trim():'',role2:document.getElementById('dmRole2')?document.getElementById('dmRole2').value.trim():'',pass:document.getElementById('dmPass').value};
+let m={_id:uid(),group:current.name,name:document.getElementById('dmName').value.trim(),id:document.getElementById('dmID').value.trim(),phone:(document.getElementById('dmPhone').value||'').trim(),kra:'',kin:'',kinPhone:'',dept:'',role2:'',pass:document.getElementById('dmPass').value};
 if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Member Password - NO default password. You MUST type a password.');return}
 if(m.pass.length<4){alert('Password must be 4+ chars');return}
 if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}
@@ -709,7 +676,7 @@ el.innerHTML='<h4>Members ('+l.length+')</h4><table><tr><th>Name</th><th>Dept</t
 }
 function addMember(){
 if(!canAddMember()){alert('Only TREASURER / HR');return}
-let m={_id:uid(),group:current.name,name:document.getElementById('mName').value,id:document.getElementById('mID').value,phone:(document.getElementById('mPhone').value||'').trim(),kra:document.getElementById('mKra').value,kin:document.getElementById('mKin').value,kinPhone:document.getElementById('mKinPhone').value,dept:document.getElementById('mDept')?document.getElementById('mDept').value.trim():'',role2:document.getElementById('mRole2')?document.getElementById('mRole2').value.trim():'',pass:document.getElementById('mPass').value};
+let m={_id:uid(),group:current.name,name:document.getElementById('mName').value,id:document.getElementById('mID')?document.getElementById('mID').value:'',phone:(document.getElementById('mPhone').value||'').trim(),kra:document.getElementById('mKra')?document.getElementById('mKra').value:'',kin:document.getElementById('mKin')?document.getElementById('mKin').value:'',kinPhone:document.getElementById('mKinPhone')?document.getElementById('mKinPhone').value:'',dept:document.getElementById('mDept')?document.getElementById('mDept').value.trim():'',role2:document.getElementById('mRole2')?document.getElementById('mRole2').value.trim():'',pass:document.getElementById('mPass').value};
 if(!m.name||!m.phone||!m.pass){alert('Fill Name + Phone + Password - NO default password. You MUST type a password.');return}
 if(m.pass.length<4){alert('Password must be 4+ chars');return}
 if(state.members.some(x=>norm(x.group)===norm(current.name)&&(x.phone||'').trim()===m.phone)){alert('Member with this phone already exists');return}
